@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard O.S. SEGSAT - Central de Comando</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --teal: #0f7561; --bg: #f4f6f6; --white: #fff; --border: #e0e5e5; --red: rgba(217, 48, 37, 0.15); --yellow: rgba(249, 171, 0, 0.2); }
+        * { box-sizing: border-box; font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; }
+        body { background: var(--bg); color: #333; padding: 12px; height: 100vh; display: flex; overflow: hidden; }
+        .container { width: 100%; display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; }
+        
+        header { background: var(--teal); color: var(--white); padding: 8px 15px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
+        header h1 { font-size: 16px; font-weight: 700; text-align: center; flex: 1; margin: 0; }
+        .top-panel { display: flex; flex-direction: column; gap: 8px; flex-shrink: 0; }
+        .f-wrapper { display: flex; flex-direction: column; gap: 6px; background: var(--white); padding: 8px; border: 1px solid var(--border); border-radius: 4px; }
+        
+        .quick-filters { display: flex; gap: 8px; align-items: center; }
+        .btn-quick { background: var(--bg); border: 1px solid var(--border); padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); }
+        .btn-quick.active { background: var(--teal); color: var(--white); border-color: var(--teal); }
+        
+        /* Botão de Exportação */
+        .btn-export { background: #1890ff; color: #fff; border: none; padding: 4px 10px; border-radius: 4px; font-size: 10px; font-weight: bold; cursor: pointer; margin-left: auto; transition: background 0.2s; }
+        .btn-export:hover { background: #0078d4; }
+        
+        /* Larguras dinâmicas flexíveis para evitar cortes em qualquer resolução */
+        .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 6px; }
+        .f-card { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; display: flex; align-items: center; width: 100%; }
+        .f-card label { background: var(--teal); color: var(--white); font-size: 9px; font-weight: 700; text-align: center; padding: 6px 10px; text-transform: uppercase; white-space: nowrap; flex-shrink: 0; }
+        .f-card select { width: 100%; padding: 4px; border: none; font-size: 11px; outline: none; color: #333; background: transparent; cursor: pointer; font-weight: bold; text-overflow: ellipsis; }
+        
+        .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 8px; }
+        .k-card { background: var(--white); border: 1px solid var(--border); border-radius: 4px; text-align: center; overflow: hidden; position: relative; padding-bottom: 4px; }
+        .k-header { background: var(--teal); color: var(--white); font-size: 9px; font-weight: 600; padding: 3px; text-transform: uppercase; }
+        .k-value { font-size: 20px; font-weight: 700; padding: 4px 0; color: #222; }
+        
+        .grid { display: grid; grid-template-columns: 1fr; gap: 10px; flex: 1; min-height: 0; }
+        @media (min-width: 1024px) { .grid { grid-template-columns: 1.2fr 0.8fr; } }
+        .box { background: var(--white); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+        .b-header { background: var(--teal); color: var(--white); padding: 6px; font-size: 11px; font-weight: 600; text-align: center; flex-shrink: 0; text-transform: uppercase; }
+        .scroll { flex: 1; overflow-y: auto; overflow-x: auto; position: relative; background: var(--white); }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 11px; }
+        th { background: var(--teal); color: var(--white); padding: 8px; position: sticky; top: 0; z-index: 2; white-space: nowrap; text-align: left; font-weight: 600; }
+        td { padding: 6px 8px; border-bottom: 1px solid var(--border); color: #444; }
+        tbody tr:nth-child(even) { background: #f9fbfb; }
+        tr.sla-critical { background-color: var(--red) !important; }
+        tr.sla-warning { background-color: var(--yellow) !important; }
+        tfoot td { position: sticky; bottom: 0; background: #e6f2f0; font-weight: 700; z-index: 2; border-top: 2px solid var(--teal); padding: 6px 8px; }
+        
+        .right-column { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+        .sub-split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; flex: 1; min-height: 0; }
+        
+        .clickable-cell { cursor: pointer; transition: background 0.2s; }
+        .clickable-cell:hover { background-color: rgba(15, 117, 97, 0.1) !important; }
+        .active-filter-cell { background-color: rgba(249, 171, 0, 0.25) !important; font-weight: bold; }
+        .active-filter-row { background-color: rgba(15, 117, 97, 0.12) !important; }
+        
+        .matrix-branch-click { font-weight: 700; color: var(--teal); text-decoration: underline; cursor: pointer; }
+        .pareto-list { padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+        .pareto-item { display: flex; justify-content: space-between; align-items: center; padding: 5px 8px; background: var(--bg); border-radius: 3px; border-left: 3px solid var(--teal); font-size: 10px; cursor: pointer; transition: transform 0.1s; }
+        .pareto-item:hover { transform: translateX(2px); background-color: #edf2f2; }
+        .pareto-item.active-pareto { background-color: rgba(249, 171, 0, 0.2); border-left-color: #f9ab00; }
+        .pareto-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+        .pareto-count { background: var(--teal); color: #fff; padding: 1px 5px; border-radius: 10px; font-size: 9px; font-weight: bold; }
+        .chart-container { flex: 1; padding: 5px; position: relative; width: 100%; height: 100%; }
+        
+        .live { display: flex; align-items: center; gap: 5px; font-size: 10px; font-weight: bold; }
+        .dot { width: 6px; height: 6px; background: #4eff7e; border-radius: 50%; animation: pulse 1.5s infinite; }
+        .dot.error { background: #ff4e4e; box-shadow: 0 0 0 rgba(255,78,78,0.7); animation: none; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(78,255,126,0.7); } 70% { box-shadow: 0 0 0 4px rgba(78,255,126,0); } 100% { box-shadow: 0 0 0 0 rgba(78,255,126,0); } }
+        .scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+        .scroll::-webkit-scrollbar-thumb { background: #c4c4c4; border-radius: 2px; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div><b>Parvi</b> <span style="font-size:10px;">Transportes</span></div>
+        <h1>CENTRAL DE COMANDO O.S.</h1>
+        <div class="live"><span class="dot" id="live-dot"></span> LIVE <span id="sync-time" style="font-weight:400;">00:00:00</span></div>
+    </header>
+
+    <div class="top-panel">
+        <div class="f-wrapper">
+            <div class="quick-filters">
+                <label>Períodos Rápidos:</label>
+                <button class="btn-quick active" onclick="setQuickFilter('tudo', this)">Hoje / Total</button>
+                <button class="btn-quick" onclick="setQuickFilter('7', this)">7 Dias</button>
+                <button class="btn-quick" onclick="setQuickFilter('15', this)">15 Dias</button>
+                <button class="btn-quick" onclick="setQuickFilter('30', this)">30 Dias</button>
+                
+                <button class="btn-export" onclick="exportarCSV()" title="Exportar dados filtrados para Excel">📥 EXPORTAR O.S. (CSV)</button>
+            </div>
+            <div class="filters">
+                <div class="f-card"><label>Ano</label><select id="filter-ano"><option value="Tudo">Tudo</option></select></div>
+                <div class="f-card"><label>Mês</label><select id="filter-mes"><option value="Tudo">Tudo</option></select></div>
+                <div class="f-card"><label>Filial</label><select id="filter-filial"><option value="Tudo">Tudo</option></select></div>
+                <div class="f-card"><label>Equipamento</label><select id="filter-equip"><option value="Tudo">Tudo</option></select></div>
+                <div class="f-card"><label>Descrição</label><select id="filter-desc"><option value="Tudo">Tudo</option></select></div>
+                <div class="f-card"><label>Situação</label><select id="filter-situacao"><option value="Tudo">Tudo</option></select></div>
+            </div>
+        </div>
+
+        <div class="kpis">
+            <div class="k-card"><div class="k-header">Total O.S.</div><div class="k-value" id="kpi-total-os">0</div></div>
+            <div class="k-card"><div class="k-header">O.S. Fechadas</div><div class="k-value" id="kpi-fechadas">0</div></div>
+            <div class="k-card"><div class="k-header">O.S. Abertas</div><div class="k-value" style="color:#d93025;" id="kpi-abertas">0</div></div>
+            <div class="k-card"><div class="k-header">Veic. Com Defeito</div><div class="k-value" id="kpi-defeito">0</div></div>
+            <div class="k-card"><div class="k-header">Eficiência</div><div class="k-value" id="kpi-eficiencia">0%</div></div>
+            <div class="k-card"><div class="k-header">Média Dias Resolução</div><div class="k-value" id="kpi-media-dias">0</div></div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <div class="box">
+            <div class="b-header">Listagem Geral de O.S.</div>
+            <div class="scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>N° O. S</th>
+                            <th class="sortable" onclick="toggleSort('data')" style="cursor:pointer;">Data ⇅</th>
+                            <th>Veículo</th>
+                            <th>Filial</th>
+                            <th>Equipamento</th>
+                            <th>Descrição</th>
+                            <th class="sortable" onclick="toggleSort('dias')" style="cursor:pointer;">Dias ⇅</th>
+                            <th>Situação</th>
+                        </tr>
+                    </thead>
+                    <tbody id="table-body">
+                        <tr><td colspan="8" style="text-align:center; padding:60px; font-weight:bold; color:#555;">Sincronizando com Google Sheets...</td></tr>
+                    </tbody>
+                    <tfoot>
+                        <tr><td colspan="6">Acumulado Dias (Baseado no Filtro)</td><td id="table-total-dias">0</td><td></td></tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <div class="right-column">
+            <div class="box" style="flex: 1.2;">
+                <div class="b-header">Matriz Cruzada Filial x Equipamento</div>
+                <div class="scroll">
+                    <table id="matrix-table" class="clickable-matrix">
+                        <thead></thead>
+                        <tbody id="matrix-table-body"></tbody>
+                        <tfoot></tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <div class="sub-split">
+                <div class="box"><div class="b-header">Top Defeitos (Pareto)</div><div class="scroll pareto-list" id="pareto-container"></div></div>
+                <div class="box"><div class="b-header">Volumetria O.S.</div><div class="chart-container"><canvas id="chartEq"></canvas></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const listaMeses = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
+    let currentDaysLimit = 'Tudo', currentSort = { column: 'dias', desc: true }, chartInstance = null;
+    let osData = [];
+    let currentFilteredData = [];
+
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwi1P0OM9i6MnRYNKYf7yEjNC2M-hT1H-BcMd2aiRQC-9EJ0_FkhOiMrKOMrjieSg6Xzg/exec";
+
+    document.addEventListener("DOMContentLoaded", function() {
+        document.getElementById('sync-time').innerText = new Date().toLocaleTimeString('pt-BR');
+        solicitarDadosDoServidor();
+
+        ['filter-ano', 'filter-mes', 'filter-filial', 'filter-equip', 'filter-desc', 'filter-situacao'].forEach(id => document.getElementById(id).addEventListener('change', updateDashboard));
+        setInterval(solicitarDadosDoServidor, 30000);
+    });
+
+    function solicitarDadosDoServidor() {
+        let textoBrutoSalvo = "";
+        fetch(WEB_APP_URL, { redirect: 'follow' })
+            .then(response => response.text())
+            .then(text => {
+                textoBrutoSalvo = text;
+                try {
+                    let jsonStr = text;
+                    let indexArray = text.indexOf('[');
+                    let indexObj = text.indexOf('{');
+                    let startIndex = indexArray !== -1 && indexObj !== -1 ? Math.min(indexArray, indexObj) : Math.max(indexArray, indexObj);
+
+                    if (startIndex !== -1) jsonStr = text.substring(startIndex);
+                    const dadosParseados = JSON.parse(jsonStr);
+                    let arrayDados = Array.isArray(dadosParseados) ? dadosParseados : [];
+                    
+                    if (!Array.isArray(dadosParseados)) {
+                        for (let key in dadosParseados) {
+                            if (Array.isArray(dadosParseados[key])) { arrayDados = dadosParseados[key]; break; }
+                        }
+                    }
+
+                    if (arrayDados.length > 0) {
+                        processarDadosPlanilha(arrayDados);
+                        document.getElementById('sync-time').innerText = new Date().toLocaleTimeString('pt-BR');
+                        document.getElementById('live-dot').classList.remove('error');
+                    }
+                } catch (e) {
+                    document.getElementById('table-body').innerHTML = `<tr><td colspan="8" style="text-align:center; color:red; padding:40px;">Falha de Estrutura na API. Verifique a URL do Google Sheets.</td></tr>`;
+                    document.getElementById('live-dot').classList.add('error');
+                }
+            })
+            .catch(erro => {
+                document.getElementById('live-dot').classList.add('error');
+            });
+    }
+
+    function processarDadosPlanilha(dados) {
+        let processados = [];
+        let hoje = new Date();
+        
+        dados.forEach(h => {
+            let situacaoBruta = String(h.situacao || '').trim().toUpperCase();
+            let isFechada = (situacaoBruta === 'FECHADA' || situacaoBruta === 'OK' || situacaoBruta === 'CONCLUIDA' || situacaoBruta === 'CONCLUÍDA' || situacaoBruta === 'FECHADO');
+            let situacaoNorm = isFechada ? 'FECHADA' : 'ABERTA';
+
+            let numeroOS = "";
+            let dataStr = "";
+            let diasEmAberto = 0;
+            let defNorm = String(h.defeito || 'Manutenção Corretiva').trim();
+            let descFiltro = String(h.desc_filtro || defNorm).trim();
+
+            if (String(h.os).includes('GMT') || String(h.os).includes('Hora') || String(h.os).includes('202')) {
+                numeroOS = String(h.data || '').trim();
+                dataStr = String(h.os || '').split('(')[0].trim(); 
+                diasEmAberto = parseInt(h.defeito);
+                if (isNaN(diasEmAberto)) diasEmAberto = parseInt(h.dias) || 0;
+                defNorm = 'Manutenção Corretiva'; 
+                descFiltro = 'MANUTENÇÃO CORRETIVA';
+            } else {
+                numeroOS = String(h.os || '').trim();
+                dataStr = String(h.data || '').trim();
+                diasEmAberto = parseInt(h.dias) || parseInt(h.defeito) || 0;
+            }
+
+            if (!numeroOS || numeroOS === '-') return;
+
+            let objData = new Date(dataStr);
+            let dataFormatada = dataStr;
+            let ano = '2026';
+            let mes = 'JANEIRO';
+
+            if (!isNaN(objData.getTime()) && dataStr.includes('-')) {
+                dataFormatada = objData.toLocaleDateString('pt-BR');
+                ano = objData.getFullYear().toString();
+                mes = listaMeses[objData.getMonth()] || 'JANEIRO';
+            } else {
+                let partes = dataStr.split('/');
+                if (partes.length >= 3) {
+                    ano = partes[2].substring(0, 4);
+                    let mInt = parseInt(partes[1]) - 1;
+                    mes = listaMeses[mInt] || 'JANEIRO';
+                }
+            }
+
+            // TRAVA DE ANO DE AÇO
+            if (ano !== '2024' && ano !== '2025' && ano !== '2026') {
+                if (dataStr.includes('2025')) ano = '2025';
+                else if (dataStr.includes('2024')) ano = '2024';
+                else ano = '2026'; 
+            }
+
+            if (diasEmAberto === 0 && situacaoNorm === 'ABERTA' && !isNaN(objData.getTime())) {
+                let diff = Math.floor((hoje - objData) / (1000 * 60 * 60 * 24));
+                diasEmAberto = diff > 0 ? diff : 0;
+            }
+
+            let veiculo = String(h.veiculo || '-').trim().toUpperCase();
+            let filial = String(h.filial || 'PE').trim().toUpperCase();
+            let equipNorm = String(h.equipamento || 'NÃO INFORMADO').trim().toUpperCase();
+
+            // Adiciona abertas E fechadas
+            processados.push({
+                os: numeroOS, data: dataFormatada, ano: ano, mes: mes, veiculo: veiculo,
+                filial: filial, equipamento: equipNorm, defeito: defNorm, desc_filtro: descFiltro,
+                dias: diasEmAberto, situacao: situacaoNorm
+            });
+        });
+
+        osData = processados;
+        if(osData.length > 0) {
+            populateFilters(); 
+            updateDashboard();
+        }
+    }
+
+    function populateFilters() {
+        // Guarda os valores atuais antes de repopular para não zerar os filtros durante a sincronização
+        let currentAno = document.getElementById('filter-ano').value;
+        let currentMes = document.getElementById('filter-mes').value;
+        let currentFilial = document.getElementById('filter-filial').value;
+        let currentEquip = document.getElementById('filter-equip').value;
+        let currentDesc = document.getElementById('filter-desc').value;
+        let currentSit = document.getElementById('filter-situacao').value;
+
+        const unique = (key) => [...new Set(osData.map(item => (item[key] || '').toString().trim()))].filter(Boolean).sort();
+        const fill = (id, arr, currentVal) => { 
+            let s = document.getElementById(id);
+            s.innerHTML = '<option value="Tudo">Tudo</option>'; 
+            arr.forEach(v => s.innerHTML += `<option value="${v}">${v}</option>`); 
+            s.value = [...s.options].some(o => o.value === currentVal) ? currentVal : 'Tudo';
+        };
+
+        fill('filter-ano', unique('ano'), currentAno); 
+        fill('filter-mes', listaMeses, currentMes); 
+        fill('filter-filial', unique('filial'), currentFilial);
+        fill('filter-equip', unique('equipamento'), currentEquip); 
+        fill('filter-desc', unique('desc_filtro'), currentDesc);
+        fill('filter-situacao', unique('situacao'), currentSit);
+        
+        let selectSit = document.getElementById('filter-situacao');
+        // Define o filtro padrão para ABERTA ao carregar pela primeira vez
+        if (currentSit === 'Tudo' && !window.firstLoadDone && osData.some(i => i.situacao === 'ABERTA')) {
+             selectSit.value = 'ABERTA';
+             window.firstLoadDone = true;
+        }
+    }
+
+    function clickMatrixCell(branch, equipment) {
+        const selBranch = document.getElementById('filter-filial');
+        const selEquip = document.getElementById('filter-equip');
+        if (branch) selBranch.value = (selBranch.value === branch && !equipment) ? 'Tudo' : branch;
+        if (equipment) selEquip.value = (selEquip.value === equipment) ? 'Tudo' : equipment;
+        updateDashboard();
+    }
+
+    function clickParetoItem(defectName) {
+        const selDesc = document.getElementById('filter-desc');
+        selDesc.value = (selDesc.value === defectName) ? 'Tudo' : defectName;
+        updateDashboard();
+    }
+
+    function setQuickFilter(mode, btn) {
+        document.querySelectorAll('.btn-quick').forEach(b => b.classList.remove('active')); btn.classList.add('active');
+        currentDaysLimit = mode === 'tudo' ? 'Tudo' : parseInt(mode); updateDashboard();
+    }
+
+    function toggleSort(col) { currentSort.desc = (currentSort.column === col) ? !currentSort.desc : true; currentSort.column = col; updateDashboard(); }
+
+    function updateDashboard() {
+        if (!osData.length) return;
+        const fAno = document.getElementById('filter-ano').value.trim();
+        const fMes = document.getElementById('filter-mes').value.trim();
+        const fFilial = document.getElementById('filter-filial').value.trim();
+        const fEquip = document.getElementById('filter-equip').value.trim();
+        const fDesc = document.getElementById('filter-desc').value.trim();
+        const fSit = document.getElementById('filter-situacao').value.trim();
+
+        let filtered = osData.filter(item => {
+            let matchDays = (currentDaysLimit === 'Tudo' || item.dias <= currentDaysLimit);
+            return matchDays &&
+                   (fAno === 'Tudo' || item.ano === fAno) &&
+                   (fMes === 'Tudo' || item.mes === fMes) &&
+                   (fFilial === 'Tudo' || item.filial === fFilial) &&
+                   (fEquip === 'Tudo' || item.equipamento === fEquip) &&
+                   (fDesc === 'Tudo' || item.desc_filtro === fDesc) &&
+                   (fSit === 'Tudo' || item.situacao === fSit);
+        });
+
+        filtered.sort((a, b) => currentSort.column === 'dias' ? (currentSort.desc ? b.dias - a.dias : a.dias - b.dias) : (currentSort.desc ? b.data.localeCompare(a.data) : a.data.localeCompare(b.data)));
+        
+        currentFilteredData = filtered; 
+
+        let totalDias = 0, veicDef = new Set(), pareto = {};
+        let htmlTabela = '';
+        let equipamentosUnicos = [...new Set(osData.map(i => i.equipamento))].sort();
+        let matrix = {};
+
+        filtered.forEach(item => {
+            totalDias += item.dias; veicDef.add(item.veiculo); 
+            pareto[item.desc_filtro] = (pareto[item.desc_filtro] || 0) + 1; 
+            
+            let f = item.filial, eq = item.equipamento;
+            if (!matrix[f]) { matrix[f] = { rowTotal: 0 }; equipamentosUnicos.forEach(e => matrix[f][e] = 0); }
+            matrix[f][eq] = (matrix[f][eq] || 0) + 1;
+            matrix[f].rowTotal++;
+
+            let situacaoColor = item.situacao === 'FECHADA' ? '#0f5132' : '#d93025';
+            htmlTabela += `<tr ${item.dias >= 110 && item.situacao === 'ABERTA' ? 'class="sla-critical"' : (item.dias >= 90 && item.situacao === 'ABERTA' ? 'class="sla-warning"' : '')}>
+                <td><b>${item.os}</b></td><td>${item.data}</td><td>${item.veiculo}</td><td>${item.filial}</td><td>${item.equipamento}</td><td>${item.defeito}</td><td><b>${item.dias}</b></td><td><b style="color:${situacaoColor}">${item.situacao}</b></td>
+            </tr>`;
+        });
+        
+        document.getElementById('table-body').innerHTML = htmlTabela || `<tr><td colspan="8" style="text-align:center; padding:30px;">Nenhum chamado ativo com os filtros selecionados.</td></tr>`;
+        document.getElementById('table-total-dias').innerText = totalDias;
+
+        let pHTML = '';
+        Object.keys(pareto).map(k=>({n:k,c:pareto[k]})).sort((a,b)=>b.c-a.c).slice(0,5).forEach(p => {
+            let isAct = fDesc.toUpperCase() === p.n.toUpperCase() ? 'active-pareto' : '';
+            pHTML += `<div class="pareto-item ${isAct}" onclick="clickParetoItem('${p.n}')"><span class="pareto-name" title="${p.n}">${p.n}</span><span class="pareto-count">${p.c}x</span></div>`;
+        });
+        document.getElementById('pareto-container').innerHTML = pHTML || '<div style="font-size:10px; padding:10px; color:#777;">Sem dados.</div>';
+
+        document.querySelector('#matrix-table thead').innerHTML = `<tr><th>Filial</th>${equipamentosUnicos.map(e => `<th>${e}</th>`).join('')}<th>Total</th></tr>`;
+        let mHTML = '', colTotals = {}, grandTotal = 0;
+        equipamentosUnicos.forEach(e => colTotals[e] = 0);
+
+        Object.keys(matrix).sort().forEach(b => {
+            let d = matrix[b];
+            let isRowActive = fFilial === b ? 'active-filter-row' : '';
+            mHTML += `<tr class="${isRowActive}"><td class="matrix-branch-click" onclick="clickMatrixCell('${b}', null)">${b}</td>`;
+            equipamentosUnicos.forEach(eq => {
+                let v = d[eq] || 0; colTotals[eq] += v;
+                let isCellActive = (fFilial === b && fEquip === eq) ? 'active-filter-cell' : '';
+                mHTML += `<td class="clickable-cell ${isCellActive}" onclick="clickMatrixCell('${b}', '${eq}')">${v || ""}</td>`;
+            });
+            mHTML += `<td><b>${d.rowTotal}</b></td></tr>`;
+            grandTotal += d.rowTotal;
+        });
+        document.getElementById('matrix-table-body').innerHTML = mHTML;
+        document.querySelector('#matrix-table tfoot').innerHTML = `<tr><td>Total</td>${equipamentosUnicos.map(eq => `<td><b>${colTotals[eq]}</b></td>`).join('')}<td><b>${grandTotal}</b></td></tr>`;
+
+        updateChart(equipamentosUnicos, colTotals);
+
+        let abertasExatas = filtered.filter(i => i.situacao === 'ABERTA').length;
+        let fechadasExatas = filtered.filter(i => i.situacao === 'FECHADA').length;
+
+        let tot = abertasExatas + fechadasExatas;
+        document.getElementById('kpi-abertas').innerText = abertasExatas;
+        document.getElementById('kpi-defeito').innerText = veicDef.size;
+        document.getElementById('kpi-total-os').innerText = tot;
+        document.getElementById('kpi-fechadas').innerText = fechadasExatas;
+        document.getElementById('kpi-eficiencia').innerText = (tot > 0 ? Math.round((fechadasExatas/tot)*100) : 100) + "%";
+        document.getElementById('kpi-media-dias').innerText = abertasExatas > 0 ? Math.round(totalDias / abertasExatas) : "0";
+    }
+
+    function updateChart(labelsArray, dataTotals) {
+        let vals = labelsArray.map(l => dataTotals[l]);
+        if (chartInstance) { 
+            chartInstance.data.labels = labelsArray; chartInstance.data.datasets[0].data = vals; chartInstance.update(); 
+        } else {
+            chartInstance = new Chart(document.getElementById('chartEq').getContext('2d'), {
+                type: 'bar',
+                data: { labels: labelsArray, datasets: [{ data: vals, backgroundColor: '#1890ff', borderRadius: 4, barPercentage: 0.6 }] },
+                options: { 
+                    responsive: true, maintainAspectRatio: false, 
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { font: { size: 9 } } }, x: { grid: { display: false }, ticks: { font: { size: 9 } } } },
+                    onClick: (e, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const label = chartInstance.data.labels[index];
+                            const selEquip = document.getElementById('filter-equip');
+                            selEquip.value = (selEquip.value === label) ? 'Tudo' : label;
+                            updateDashboard();
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    function exportarCSV() {
+        if (!currentFilteredData || currentFilteredData.length === 0) {
+            alert("Não há dados visíveis para exportar com os filtros atuais.");
+            return;
+        }
+
+        let csvContent = "N° O.S;Data;Veículo;Filial;Equipamento;Descrição;Dias;Situação\n";
+        
+        currentFilteredData.forEach(item => {
+            let descSegura = item.defeito ? item.defeito.replace(/;/g, ',').replace(/\n/g, ' ') : '';
+            let row = [
+                item.os, item.data, item.veiculo, item.filial, item.equipamento,
+                `"${descSegura}"`, item.dias, item.situacao
+            ];
+            csvContent += row.join(";") + "\n";
+        });
+
+        let bom = "\uFEFF";
+        let blob = new Blob([bom + csvContent], { type: 'text/csv;charset=utf-8;' });
+        let link = document.createElement("a");
+        let url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        link.setAttribute("download", "Relatorio_OS_Filtrado.csv");
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+</script>
+</body>
+</html>
