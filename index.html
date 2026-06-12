@@ -203,7 +203,7 @@
                         document.getElementById('live-dot').classList.remove('error');
                     }
                 } catch (e) {
-                    document.getElementById('table-body').innerHTML = `<tr><td colspan="8" style="text-align:center; color:red; padding:40px;">Falha de Estrutura na API. Verifique a URL do Google Sheets.</td></tr>`;
+                    document.getElementById('table-body').innerHTML = `<tr><td colspan="8" style="text-align:center; color:red; padding:40px;">Falha de Estrutura na API. Verifique a URL e a Implantação.</td></tr>`;
                     document.getElementById('live-dot').classList.add('error');
                 }
             })
@@ -224,7 +224,6 @@
             let numeroOS = String(h.os || '').trim();
             let dataStrRaw = String(h.data || '').trim();
             
-            // Corrige se a API estiver mandando as colunas invertidas
             if (numeroOS.includes('GMT') || numeroOS.includes('Hora') || numeroOS.length > 15) {
                 let temp = numeroOS;
                 numeroOS = dataStrRaw;
@@ -233,7 +232,6 @@
 
             if (!numeroOS || numeroOS === '-') return;
 
-            // Limpeza impecável do fuso horário brasileiro para não bugar a leitura
             let dataStr = dataStrRaw.split('(')[0].trim();
             let diasEmAberto = parseInt(h.dias) || parseInt(h.defeito) || 0;
             
@@ -246,7 +244,6 @@
             let mes = 'JANEIRO';
 
             if (!isNaN(objData.getTime())) {
-                // Formatação manual confiável para evitar problemas de fuso no navegador
                 let dia = String(objData.getDate()).padStart(2, '0');
                 let mesNum = String(objData.getMonth() + 1).padStart(2, '0');
                 let anoNum = objData.getFullYear();
@@ -363,13 +360,23 @@
         
         currentFilteredData = filtered; 
 
-        let totalDias = 0, veicDef = new Set(), pareto = {};
+        let totalDiasTabela = 0; 
+        let totalDiasResolucao = 0; 
+        let qtdResolvidas = 0;
+        let veicDef = new Set();
+        let pareto = {};
         let htmlTabela = '';
         let equipamentosUnicos = [...new Set(osData.map(i => i.equipamento))].sort();
         let matrix = {};
 
         filtered.forEach(item => {
-            totalDias += item.dias; veicDef.add(item.veiculo); 
+            totalDiasTabela += item.dias;
+            if (item.situacao === 'FECHADA') {
+                totalDiasResolucao += item.dias;
+                qtdResolvidas++;
+            }
+            
+            veicDef.add(item.veiculo); 
             pareto[item.desc_filtro] = (pareto[item.desc_filtro] || 0) + 1; 
             
             let f = item.filial, eq = item.equipamento;
@@ -384,7 +391,7 @@
         });
         
         document.getElementById('table-body').innerHTML = htmlTabela || `<tr><td colspan="8" style="text-align:center; padding:30px;">Nenhum chamado ativo com os filtros selecionados.</td></tr>`;
-        document.getElementById('table-total-dias').innerText = totalDias;
+        document.getElementById('table-total-dias').innerText = totalDiasTabela;
 
         let pHTML = '';
         Object.keys(pareto).map(k=>({n:k,c:pareto[k]})).sort((a,b)=>b.c-a.c).slice(0,5).forEach(p => {
@@ -423,7 +430,9 @@
         document.getElementById('kpi-total-os').innerText = tot;
         document.getElementById('kpi-fechadas').innerText = fechadasExatas;
         document.getElementById('kpi-eficiencia').innerText = (tot > 0 ? Math.round((fechadasExatas/tot)*100) : 100) + "%";
-        document.getElementById('kpi-media-dias').innerText = abertasExatas > 0 ? Math.round(totalDias / abertasExatas) : "0";
+        
+        // Média de Dias calculada EXCLUSIVAMENTE sobre as OS Fechadas (Resolvidas)
+        document.getElementById('kpi-media-dias').innerText = qtdResolvidas > 0 ? Math.round(totalDiasResolucao / qtdResolvidas) : "0";
     }
 
     function updateChart(labelsArray, dataTotals) {
