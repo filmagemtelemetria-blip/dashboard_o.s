@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard O.S. SEGSAT</title>
+    <title>Dashboard O.S. SEGSAT - Central de Comando</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root { --teal: #0f7561; --bg: #f4f6f6; --white: #fff; --border: #e0e5e5; --red: rgba(217, 48, 37, 0.15); --yellow: rgba(249, 171, 0, 0.2); }
@@ -40,7 +40,7 @@
         .scroll { flex: 1; overflow-y: auto; overflow-x: auto; position: relative; background: var(--white); }
         
         table { width: 100%; border-collapse: collapse; font-size: 11px; }
-        th { background: var(--teal); color: var(--white); padding: 8px; position: sticky; top: 0; z-index: 2; white-space: nowrap; text-align: left; font-weight: 600; }
+        th { background: var(--teal); color: var(--white); padding: 8px; position: sticky; top: 0; z-index: 2; white-space: nowrap; text-align: left; font-weight: 600; cursor: pointer; }
         td { padding: 6px 8px; border-bottom: 1px solid var(--border); color: #444; }
         tbody tr:nth-child(even) { background: #f9fbfb; }
         tr.sla-critical { background-color: var(--red) !important; }
@@ -77,7 +77,7 @@
 <div class="container">
     <header>
         <div><b>Parvi</b> <span style="font-size:10px;">Transportes</span></div>
-        <h1>CENTRAL DE O.S.</h1>
+        <h1>CENTRAL DE COMANDO O.S.</h1>
         <div class="live"><span class="dot" id="live-dot"></span> LIVE <span id="sync-time" style="font-weight:400;">00:00:00</span></div>
     </header>
 
@@ -165,7 +165,6 @@
     let osData = [];
     let currentFilteredData = [];
 
-    // O SEU LINK DA API DO GOOGLE APPS SCRIPT
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwi1P0OM9i6MnRYNKYf7yEjNC2M-hT1H-BcMd2aiRQC-9EJ0_FkhOiMrKOMrjieSg6Xzg/exec";
 
     document.addEventListener("DOMContentLoaded", function() {
@@ -177,9 +176,11 @@
     });
 
     function solicitarDadosDoServidor() {
+        let textoBrutoSalvo = "";
         fetch(WEB_APP_URL, { redirect: 'follow' })
             .then(response => response.text())
             .then(text => {
+                textoBrutoSalvo = text;
                 try {
                     let jsonStr = text;
                     let indexArray = text.indexOf('[');
@@ -202,7 +203,7 @@
                         document.getElementById('live-dot').classList.remove('error');
                     }
                 } catch (e) {
-                    document.getElementById('table-body').innerHTML = `<tr><td colspan="8" style="text-align:center; color:red; padding:40px;">Falha de Estrutura na API. Verifique a URL e a Implantação.</td></tr>`;
+                    document.getElementById('table-body').innerHTML = `<tr><td colspan="8" style="text-align:center; color:red; padding:40px;">Falha de Estrutura na API. Verifique a URL do Google Sheets.</td></tr>`;
                     document.getElementById('live-dot').classList.add('error');
                 }
             })
@@ -220,43 +221,61 @@
             let isFechada = (situacaoBruta === 'FECHADA' || situacaoBruta === 'OK' || situacaoBruta === 'CONCLUIDA' || situacaoBruta === 'CONCLUÍDA' || situacaoBruta === 'FECHADO');
             let situacaoNorm = isFechada ? 'FECHADA' : 'ABERTA';
 
-            // Leitura limpa e direta
             let numeroOS = String(h.os || '').trim();
+            let dataStrRaw = String(h.data || '').trim();
+            
+            // Corrige se a API estiver mandando as colunas invertidas
+            if (numeroOS.includes('GMT') || numeroOS.includes('Hora') || numeroOS.length > 15) {
+                let temp = numeroOS;
+                numeroOS = dataStrRaw;
+                dataStrRaw = temp;
+            }
+
             if (!numeroOS || numeroOS === '-') return;
 
-            let dataStr = String(h.data || '').trim();
-            let diasEmAberto = parseInt(h.dias) || 0;
-            let defNorm = String(h.defeito || 'SEM DESCRIÇÃO').trim();
-            let descFiltro = String(h.desc_filtro || defNorm).trim();
+            // Limpeza impecável do fuso horário brasileiro para não bugar a leitura
+            let dataStr = dataStrRaw.split('(')[0].trim();
+            let diasEmAberto = parseInt(h.dias) || parseInt(h.defeito) || 0;
+            
+            let defNorm = String(h.defeito || 'Manutenção Corretiva').trim();
+            let descFiltro = String(h.desc_filtro || defNorm).trim().toUpperCase();
 
+            let objData = new Date(dataStr);
+            let dataFormatada = dataStr;
             let ano = '2026';
             let mes = 'JANEIRO';
-            
-            // Tratamento inteligente para dd/MM/yyyy
-            if (dataStr.includes('/')) {
+
+            if (!isNaN(objData.getTime())) {
+                // Formatação manual confiável para evitar problemas de fuso no navegador
+                let dia = String(objData.getDate()).padStart(2, '0');
+                let mesNum = String(objData.getMonth() + 1).padStart(2, '0');
+                let anoNum = objData.getFullYear();
+                
+                dataFormatada = `${dia}/${mesNum}/${anoNum}`;
+                ano = anoNum.toString();
+                mes = listaMeses[objData.getMonth()] || 'JANEIRO';
+                
+                if (diasEmAberto === 0 && situacaoNorm === 'ABERTA') {
+                   let diff = Math.floor((hoje - objData) / (1000 * 60 * 60 * 24));
+                   diasEmAberto = diff > 0 ? diff : 0;
+                }
+            } else {
                 let partes = dataStr.split('/');
                 if (partes.length === 3) {
+                    dataFormatada = dataStr;
                     ano = partes[2].substring(0, 4);
                     mes = listaMeses[parseInt(partes[1]) - 1] || 'JANEIRO';
-                    
-                    if (diasEmAberto === 0 && situacaoNorm === 'ABERTA') {
-                        let dataParaCalculo = new Date(`${ano}-${partes[1]}-${partes[0]}T00:00:00`);
-                        let diff = Math.floor((hoje - dataParaCalculo) / (1000 * 60 * 60 * 24));
-                        diasEmAberto = diff > 0 ? diff : 0;
-                    }
                 }
             }
 
-            if (ano !== '2024' && ano !== '2025' && ano !== '2026') {
-                ano = dataStr.includes('2025') ? '2025' : '2026';
-            }
+            if (ano !== '2024' && ano !== '2025' && ano !== '2026') ano = dataStr.includes('2025') ? '2025' : '2026';
 
             let veiculo = String(h.veiculo || '-').trim().toUpperCase();
             let filial = String(h.filial || 'PE').trim().toUpperCase();
             let equipNorm = String(h.equipamento || 'NÃO INFORMADO').trim().toUpperCase();
 
             processados.push({
-                os: numeroOS, data: dataStr, ano: ano, mes: mes, veiculo: veiculo,
+                os: numeroOS, data: dataFormatada, ano: ano, mes: mes, veiculo: veiculo,
                 filial: filial, equipamento: equipNorm, defeito: defNorm, desc_filtro: descFiltro,
                 dias: diasEmAberto, situacao: situacaoNorm
             });
