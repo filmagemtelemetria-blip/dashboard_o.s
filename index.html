@@ -20,11 +20,9 @@
         .btn-quick { background: var(--bg); border: 1px solid var(--border); padding: 3px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; cursor: pointer; border: 1px solid var(--border); }
         .btn-quick.active { background: var(--teal); color: var(--white); border-color: var(--teal); }
         
-        /* Botão de Exportação */
         .btn-export { background: #1890ff; color: #fff; border: none; padding: 4px 10px; border-radius: 4px; font-size: 10px; font-weight: bold; cursor: pointer; margin-left: auto; transition: background 0.2s; }
         .btn-export:hover { background: #0078d4; }
         
-        /* Larguras dinâmicas flexíveis para evitar cortes em qualquer resolução */
         .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 6px; }
         .f-card { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; display: flex; align-items: center; width: 100%; }
         .f-card label { background: var(--teal); color: var(--white); font-size: 9px; font-weight: 700; text-align: center; padding: 6px 10px; text-transform: uppercase; white-space: nowrap; flex-shrink: 0; }
@@ -167,6 +165,7 @@
     let osData = [];
     let currentFilteredData = [];
 
+    // O SEU LINK DA API DO GOOGLE APPS SCRIPT
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwi1P0OM9i6MnRYNKYf7yEjNC2M-hT1H-BcMd2aiRQC-9EJ0_FkhOiMrKOMrjieSg6Xzg/exec";
 
     document.addEventListener("DOMContentLoaded", function() {
@@ -178,11 +177,9 @@
     });
 
     function solicitarDadosDoServidor() {
-        let textoBrutoSalvo = "";
         fetch(WEB_APP_URL, { redirect: 'follow' })
             .then(response => response.text())
             .then(text => {
-                textoBrutoSalvo = text;
                 try {
                     let jsonStr = text;
                     let indexArray = text.indexOf('[');
@@ -205,7 +202,7 @@
                         document.getElementById('live-dot').classList.remove('error');
                     }
                 } catch (e) {
-                    document.getElementById('table-body').innerHTML = `<tr><td colspan="8" style="text-align:center; color:red; padding:40px;">Falha de Estrutura na API. Verifique a URL do Google Sheets.</td></tr>`;
+                    document.getElementById('table-body').innerHTML = `<tr><td colspan="8" style="text-align:center; color:red; padding:40px;">Falha de Estrutura na API. Verifique a URL e a Implantação.</td></tr>`;
                     document.getElementById('live-dot').classList.add('error');
                 }
             })
@@ -223,64 +220,43 @@
             let isFechada = (situacaoBruta === 'FECHADA' || situacaoBruta === 'OK' || situacaoBruta === 'CONCLUIDA' || situacaoBruta === 'CONCLUÍDA' || situacaoBruta === 'FECHADO');
             let situacaoNorm = isFechada ? 'FECHADA' : 'ABERTA';
 
-            let numeroOS = "";
-            let dataStr = "";
-            let diasEmAberto = 0;
-            let defNorm = String(h.defeito || 'Manutenção Corretiva').trim();
-            let descFiltro = String(h.desc_filtro || defNorm).trim();
-
-            if (String(h.os).includes('GMT') || String(h.os).includes('Hora') || String(h.os).includes('202')) {
-                numeroOS = String(h.data || '').trim();
-                dataStr = String(h.os || '').split('(')[0].trim(); 
-                diasEmAberto = parseInt(h.defeito);
-                if (isNaN(diasEmAberto)) diasEmAberto = parseInt(h.dias) || 0;
-                defNorm = 'Manutenção Corretiva'; 
-                descFiltro = 'MANUTENÇÃO CORRETIVA';
-            } else {
-                numeroOS = String(h.os || '').trim();
-                dataStr = String(h.data || '').trim();
-                diasEmAberto = parseInt(h.dias) || parseInt(h.defeito) || 0;
-            }
-
+            // Leitura limpa e direta
+            let numeroOS = String(h.os || '').trim();
             if (!numeroOS || numeroOS === '-') return;
 
-            let objData = new Date(dataStr);
-            let dataFormatada = dataStr;
+            let dataStr = String(h.data || '').trim();
+            let diasEmAberto = parseInt(h.dias) || 0;
+            let defNorm = String(h.defeito || 'SEM DESCRIÇÃO').trim();
+            let descFiltro = String(h.desc_filtro || defNorm).trim();
+
             let ano = '2026';
             let mes = 'JANEIRO';
-
-            if (!isNaN(objData.getTime()) && dataStr.includes('-')) {
-                dataFormatada = objData.toLocaleDateString('pt-BR');
-                ano = objData.getFullYear().toString();
-                mes = listaMeses[objData.getMonth()] || 'JANEIRO';
-            } else {
+            
+            // Tratamento inteligente para dd/MM/yyyy
+            if (dataStr.includes('/')) {
                 let partes = dataStr.split('/');
-                if (partes.length >= 3) {
+                if (partes.length === 3) {
                     ano = partes[2].substring(0, 4);
-                    let mInt = parseInt(partes[1]) - 1;
-                    mes = listaMeses[mInt] || 'JANEIRO';
+                    mes = listaMeses[parseInt(partes[1]) - 1] || 'JANEIRO';
+                    
+                    if (diasEmAberto === 0 && situacaoNorm === 'ABERTA') {
+                        let dataParaCalculo = new Date(`${ano}-${partes[1]}-${partes[0]}T00:00:00`);
+                        let diff = Math.floor((hoje - dataParaCalculo) / (1000 * 60 * 60 * 24));
+                        diasEmAberto = diff > 0 ? diff : 0;
+                    }
                 }
             }
 
-            // TRAVA DE ANO DE AÇO
             if (ano !== '2024' && ano !== '2025' && ano !== '2026') {
-                if (dataStr.includes('2025')) ano = '2025';
-                else if (dataStr.includes('2024')) ano = '2024';
-                else ano = '2026'; 
-            }
-
-            if (diasEmAberto === 0 && situacaoNorm === 'ABERTA' && !isNaN(objData.getTime())) {
-                let diff = Math.floor((hoje - objData) / (1000 * 60 * 60 * 24));
-                diasEmAberto = diff > 0 ? diff : 0;
+                ano = dataStr.includes('2025') ? '2025' : '2026';
             }
 
             let veiculo = String(h.veiculo || '-').trim().toUpperCase();
             let filial = String(h.filial || 'PE').trim().toUpperCase();
             let equipNorm = String(h.equipamento || 'NÃO INFORMADO').trim().toUpperCase();
 
-            // Adiciona abertas E fechadas
             processados.push({
-                os: numeroOS, data: dataFormatada, ano: ano, mes: mes, veiculo: veiculo,
+                os: numeroOS, data: dataStr, ano: ano, mes: mes, veiculo: veiculo,
                 filial: filial, equipamento: equipNorm, defeito: defNorm, desc_filtro: descFiltro,
                 dias: diasEmAberto, situacao: situacaoNorm
             });
@@ -294,7 +270,6 @@
     }
 
     function populateFilters() {
-        // Guarda os valores atuais antes de repopular para não zerar os filtros durante a sincronização
         let currentAno = document.getElementById('filter-ano').value;
         let currentMes = document.getElementById('filter-mes').value;
         let currentFilial = document.getElementById('filter-filial').value;
@@ -318,7 +293,6 @@
         fill('filter-situacao', unique('situacao'), currentSit);
         
         let selectSit = document.getElementById('filter-situacao');
-        // Define o filtro padrão para ABERTA ao carregar pela primeira vez
         if (currentSit === 'Tudo' && !window.firstLoadDone && osData.some(i => i.situacao === 'ABERTA')) {
              selectSit.value = 'ABERTA';
              window.firstLoadDone = true;
