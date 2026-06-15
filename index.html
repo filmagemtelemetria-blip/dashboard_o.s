@@ -133,7 +133,7 @@
                         <tr><td colspan="8" style="text-align:center; padding:60px; font-weight:bold; color:#555;">Sincronizando com Google Sheets...</td></tr>
                     </tbody>
                     <tfoot>
-                        <tr><td colspan="6">Acumulado Dias (Baseado no Filtro)</td><td id="table-total-dias">0</td><td></td></tr>
+                        <tr><td colspan="6">Acumulado Dias O.S. Abertas</td><td id="table-total-dias">0</td><td></td></tr>
                     </tfoot>
                 </table>
             </div>
@@ -165,6 +165,7 @@
     let osData = [];
     let currentFilteredData = [];
 
+    // O SEU LINK DA API
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwi1P0OM9i6MnRYNKYf7yEjNC2M-hT1H-BcMd2aiRQC-9EJ0_FkhOiMrKOMrjieSg6Xzg/exec";
 
     document.addEventListener("DOMContentLoaded", function() {
@@ -176,11 +177,9 @@
     });
 
     function solicitarDadosDoServidor() {
-        let textoBrutoSalvo = "";
         fetch(WEB_APP_URL, { redirect: 'follow' })
             .then(response => response.text())
             .then(text => {
-                textoBrutoSalvo = text;
                 try {
                     let jsonStr = text;
                     let indexArray = text.indexOf('[');
@@ -203,7 +202,7 @@
                         document.getElementById('live-dot').classList.remove('error');
                     }
                 } catch (e) {
-                    document.getElementById('table-body').innerHTML = `<tr><td colspan="8" style="text-align:center; color:red; padding:40px;">Falha de Estrutura na API. Verifique a URL e a Implantação.</td></tr>`;
+                    document.getElementById('table-body').innerHTML = `<tr><td colspan="8" style="text-align:center; color:red; padding:40px;">Falha de Estrutura na API. Verifique a URL do Google Sheets.</td></tr>`;
                     document.getElementById('live-dot').classList.add('error');
                 }
             })
@@ -230,12 +229,13 @@
                 dataStrRaw = temp;
             }
 
-            if (!numeroOS || numeroOS === '-') return;
+            // Não dropa a linha se a O.S for nula, pois ela é necessária para a conta de fechadas bater perfeitamente
+            if (!numeroOS || numeroOS === '-') numeroOS = "S/N";
 
             let dataStr = dataStrRaw.split('(')[0].trim();
             let diasEmAberto = parseInt(h.dias) || parseInt(h.defeito) || 0;
             
-            let defNorm = String(h.defeito || 'Manutenção Corretiva').trim();
+            let defNorm = String(h.defeito || 'SEM DESCRIÇÃO').trim();
             let descFiltro = String(h.desc_filtro || defNorm).trim().toUpperCase();
 
             let objData = new Date(dataStr);
@@ -243,7 +243,7 @@
             let ano = '2026';
             let mes = 'JANEIRO';
 
-            if (!isNaN(objData.getTime())) {
+            if (!isNaN(objData.getTime()) && dataStr.includes('-')) {
                 let dia = String(objData.getDate()).padStart(2, '0');
                 let mesNum = String(objData.getMonth() + 1).padStart(2, '0');
                 let anoNum = objData.getFullYear();
@@ -258,7 +258,7 @@
                 }
             } else {
                 let partes = dataStr.split('/');
-                if (partes.length === 3) {
+                if (partes.length >= 3) {
                     dataFormatada = dataStr;
                     ano = partes[2].substring(0, 4);
                     mes = listaMeses[parseInt(partes[1]) - 1] || 'JANEIRO';
@@ -271,6 +271,7 @@
             let filial = String(h.filial || 'PE').trim().toUpperCase();
             let equipNorm = String(h.equipamento || 'NÃO INFORMADO').trim().toUpperCase();
 
+            // Adiciona todas para o filtro Situação exibir 100% da planilha
             processados.push({
                 os: numeroOS, data: dataFormatada, ano: ano, mes: mes, veiculo: veiculo,
                 filial: filial, equipamento: equipNorm, defeito: defNorm, desc_filtro: descFiltro,
@@ -353,7 +354,7 @@
                    (fFilial === 'Tudo' || item.filial === fFilial) &&
                    (fEquip === 'Tudo' || item.equipamento === fEquip) &&
                    (fDesc === 'Tudo' || item.desc_filtro === fDesc) &&
-                   (fSit === 'Tudo' || item.situacao === fSit);
+                   (fSit === 'Tudo' || item.situacao === fSit.toUpperCase());
         });
 
         filtered.sort((a, b) => currentSort.column === 'dias' ? (currentSort.desc ? b.dias - a.dias : a.dias - b.dias) : (currentSort.desc ? b.data.localeCompare(a.data) : a.data.localeCompare(b.data)));
@@ -361,17 +362,18 @@
         currentFilteredData = filtered; 
 
         let totalDiasTabela = 0; 
-        let totalDiasResolucao = 0; 
+        let totalDiasResolucao = 0;
         let qtdResolvidas = 0;
-        let veicDef = new Set();
-        let pareto = {};
+        let veicDef = new Set(), pareto = {};
         let htmlTabela = '';
         let equipamentosUnicos = [...new Set(osData.map(i => i.equipamento))].sort();
         let matrix = {};
 
         filtered.forEach(item => {
-            totalDiasTabela += item.dias;
-            if (item.situacao === 'FECHADA') {
+            // Conta dias na tabela SÓ para abertas, e resolve o KPI com as Fechadas
+            if (item.situacao === 'ABERTA') {
+                totalDiasTabela += item.dias;
+            } else if (item.situacao === 'FECHADA') {
                 totalDiasResolucao += item.dias;
                 qtdResolvidas++;
             }
@@ -421,17 +423,18 @@
 
         updateChart(equipamentosUnicos, colTotals);
 
+        // Cálculo exato de KPIs
         let abertasExatas = filtered.filter(i => i.situacao === 'ABERTA').length;
         let fechadasExatas = filtered.filter(i => i.situacao === 'FECHADA').length;
-
         let tot = abertasExatas + fechadasExatas;
+
         document.getElementById('kpi-abertas').innerText = abertasExatas;
         document.getElementById('kpi-defeito').innerText = veicDef.size;
         document.getElementById('kpi-total-os').innerText = tot;
         document.getElementById('kpi-fechadas').innerText = fechadasExatas;
         document.getElementById('kpi-eficiencia').innerText = (tot > 0 ? Math.round((fechadasExatas/tot)*100) : 100) + "%";
         
-        // Média de Dias calculada EXCLUSIVAMENTE sobre as OS Fechadas (Resolvidas)
+        // Média calculada exclusivamente pelo tempo das O.S. que já foram resolvidos pelo fornecedor (Fechadas)
         document.getElementById('kpi-media-dias').innerText = qtdResolvidas > 0 ? Math.round(totalDiasResolucao / qtdResolvidas) : "0";
     }
 
