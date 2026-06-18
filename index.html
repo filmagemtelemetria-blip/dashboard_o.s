@@ -5,9 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard O.S - Segsat</title>
     
+    <!-- Fontes, Ícones e Motores de Gráficos e PDF do Google/CDN -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,600,1,0" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
     
     <style>
         /* Variáveis Dinâmicas para Modo Claro e Escuro */
@@ -34,7 +37,6 @@
         body { background: var(--bg-color); color: var(--text-main); padding: 12px; height: 100vh; display: flex; overflow: hidden; transition: var(--transition); }
         .container { width: 100%; display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; }
         
-        /* Cabeçalho Premium */
         header { background: var(--primary); color: #fff; padding: 12px 20px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; box-shadow: var(--shadow); transition: var(--transition); }
         header h1 { font-size: 18px; font-weight: 800; text-align: center; flex: 1; letter-spacing: 0.5px; }
         .logo-box { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; }
@@ -47,7 +49,6 @@
         .dot.error { background: #ff4e4e; animation: none; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(78,255,126,0.6); } 70% { box-shadow: 0 0 0 6px rgba(78,255,126,0); } 100% { box-shadow: 0 0 0 0 rgba(78,255,126,0); } }
 
-        /* Painel Superior e Filtros */
         .top-panel { display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
         .f-wrapper { display: flex; flex-direction: column; gap: 10px; background: var(--surface); padding: 12px; border-radius: 12px; box-shadow: var(--shadow); transition: var(--transition); }
         .quick-filters { display: flex; gap: 8px; align-items: center; }
@@ -55,16 +56,14 @@
         .btn-quick.active { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 4px 10px rgba(15, 117, 97, 0.3); }
         .btn-quick:hover:not(.active) { background: var(--border); }
         
-        .btn-export { background: #3182ce; color: #fff; border: none; padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 700; cursor: pointer; margin-left: auto; transition: var(--transition); display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(49, 130, 206, 0.3); }
+        .btn-export { background: #3182ce; color: #fff; border: none; padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 700; cursor: pointer; transition: var(--transition); display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(49, 130, 206, 0.3); }
         .btn-export:hover { background: #2b6cb0; transform: translateY(-2px); }
 
         .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
         .f-card { background: var(--bg-color); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; display: flex; align-items: center; transition: var(--transition); }
         .f-card label { background: var(--primary); color: #fff; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 4px; padding: 8px 10px; flex-shrink: 0; transition: var(--transition); }
-        .f-card label span { font-size: 14px; }
         .f-card select { width: 100%; padding: 6px; border: none; font-size: 12px; outline: none; color: var(--text-main); background: transparent; cursor: pointer; font-weight: 600; }
 
-        /* KPIs Estilo Premium */
         .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
         .k-card { background: var(--surface); border-radius: 12px; box-shadow: var(--shadow); padding: 12px; display: flex; flex-direction: column; justify-content: center; position: relative; transition: var(--transition); overflow: hidden; }
         .k-card:hover { transform: translateY(-3px); }
@@ -72,17 +71,16 @@
         .k-header span { font-size: 16px; color: var(--primary); }
         .k-value { font-size: 24px; font-weight: 800; color: var(--text-main); }
         .k-value.danger { color: var(--red); }
-        
         .gauge-container { position: absolute; right: -10px; bottom: -20px; width: 80px; height: 80px; opacity: 0.9; }
 
-        /* Estrutura de Grids */
         .grid { display: grid; grid-template-columns: 1fr; gap: 12px; flex: 1; min-height: 0; }
         @media (min-width: 1024px) { .grid { grid-template-columns: 1.2fr 0.8fr; } }
         .box { background: var(--surface); border-radius: 12px; box-shadow: var(--shadow); display: flex; flex-direction: column; min-height: 0; overflow: hidden; transition: var(--transition); }
         .b-header { padding: 12px 15px; font-size: 12px; font-weight: 700; color: var(--text-main); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; text-transform: uppercase; background: rgba(0,0,0,0.02); }
-        .scroll { flex: 1; overflow-y: auto; overflow-x: auto; position: relative; }
         
-        /* Tabela Estilizada */
+        /* Aceleração de Hardware para Rolagem Fluida */
+        .scroll { flex: 1; overflow-y: auto; overflow-x: auto; position: relative; will-change: scroll-position; }
+        
         table { width: 100%; border-collapse: collapse; font-size: 11px; }
         th { background: var(--surface); color: var(--text-muted); padding: 10px; position: sticky; top: 0; z-index: 3; text-transform: uppercase; font-size: 10px; font-weight: 800; border-bottom: 2px solid var(--border); white-space: nowrap; cursor: pointer; transition: var(--transition); }
         th:hover { color: var(--primary); }
@@ -96,14 +94,12 @@
         .sub-split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; flex: 1; min-height: 0; }
         @media (min-width: 1400px) { .sub-split { grid-template-columns: 1fr 1fr 1.2fr; } }
         
-        /* Interações Clicáveis */
         .clickable-cell { cursor: pointer; text-align: center; }
         .active-filter-cell { background-color: var(--yellow-bg) !important; font-weight: bold; color: var(--primary); }
         .active-filter-row { background-color: rgba(15, 117, 97, 0.08) !important; }
         .matrix-branch-click { font-weight: 700; color: var(--primary); cursor: pointer; }
         .matrix-branch-click:hover { text-decoration: underline; }
 
-        /* Listas Pareto c/ Sparklines */
         .pareto-list { padding: 8px; display: flex; flex-direction: column; gap: 6px; }
         .pareto-item { position: relative; display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: var(--bg-color); border-radius: 6px; cursor: pointer; transition: var(--transition); overflow: hidden; border: 1px solid transparent; }
         .pareto-item:hover { border-color: var(--primary); transform: translateX(3px); }
@@ -116,11 +112,13 @@
 
         .chart-container { flex: 1; padding: 10px; position: relative; width: 100%; height: 100%; }
         
-        /* Skeleton Loader Fantasma */
         .skeleton { background: linear-gradient(90deg, var(--bg-color) 25%, var(--border) 50%, var(--bg-color) 75%); background-size: 200% 100%; animation: loading 1.5s infinite; border-radius: 4px; height: 14px; margin: 4px 0; }
         @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-        /* Scrollbars Customizadas */
+        /* Animação Suave em Cascata para a Tabela */
+        .fade-in { animation: fadeInRow 0.3s ease-out forwards; opacity: 0; }
+        @keyframes fadeInRow { to { opacity: 1; transform: translateY(0); } from { opacity: 0; transform: translateY(5px); } }
+
         .scroll::-webkit-scrollbar { width: 6px; height: 6px; }
         .scroll::-webkit-scrollbar-track { background: var(--bg-color); border-radius: 4px; }
         .scroll::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 4px; opacity: 0.5; }
@@ -148,8 +146,12 @@
                 <button class="btn-quick" onclick="setQuickFilter('15', this)">Últimos 15 Dias</button>
                 <button class="btn-quick" onclick="setQuickFilter('30', this)">Últimos 30 Dias</button>
                 
-                <button class="btn-export" onclick="exportarCSV()">
+                <button class="btn-export" style="margin-left: auto;" onclick="exportarCSV()">
                     <span class="material-symbols-rounded" style="font-size: 16px;">download</span> Exportar CSV
+                </button>
+                
+                <button class="btn-export" style="margin-left: 0; background: var(--red); box-shadow: 0 4px 10px rgba(229, 62, 62, 0.3);" onclick="abrirModalPDF()">
+                    <span class="material-symbols-rounded" style="font-size: 16px;">picture_as_pdf</span> Exportar PDF
                 </button>
             </div>
             <div class="filters">
@@ -229,11 +231,28 @@
     </div>
 </div>
 
+<div id="pdfModal" style="display:none; position:fixed; z-index:9999; left:0; top:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; backdrop-filter: blur(2px);">
+    <div style="background:var(--surface); padding:24px; border-radius:16px; box-shadow: var(--shadow); width:340px; color:var(--text-main); display:flex; flex-direction:column; gap:16px; border: 1px solid var(--border);">
+        <h3 style="font-size:14px; font-weight:800; border-bottom:1px solid var(--border); padding-bottom:12px; display:flex; align-items:center; gap:8px;">
+            <span class="material-symbols-rounded" style="color:var(--primary)">view_column</span> ESTRUTURA DO RELATÓRIO
+        </h3>
+        <p style="font-size:11px; color:var(--text-muted); font-weight:500;">Marque os campos que deseja incluir no documento PDF:</p>
+        <div style="display:flex; flex-direction:column; gap:10px; max-height:240px; overflow-y:auto; padding-right:5px; margin: 4px 0;" id="pdfColumnsCheckboxes"></div>
+        <div style="display:flex; justify-content:flex-end; gap:10px; border-top:1px solid var(--border); padding-top:14px;">
+            <button class="btn-quick" style="padding: 6px 14px; border-radius: 8px;" onclick="fecharModalPDF()">Cancelar</button>
+            <button class="btn-export" style="margin-left:0; background:var(--primary); padding: 6px 16px; border-radius: 8px;" onclick="gerarPDF()">Gerar PDF</button>
+        </div>
+    </div>
+</div>
+
 <script>
     const listaMeses = ["JANEIRO", "FEVEREIRO", "MARÇO", "ABRIL", "MAIO", "JUNHO", "JULHO", "AGOSTO", "SETEMBRO", "OUTUBRO", "NOVEMBRO", "DEZEMBRO"];
     let currentDaysLimit = 'Tudo', currentSort = { column: 'dias', desc: true };
     let chartInstance = null, gaugeInstance = null;
     let osData = [], currentFilteredData = [];
+    
+    // VARIÁVEL DE FLUIDEZ DE MEMÓRIA (PAGINAÇÃO VIRTUAL)
+    let maxTableRows = 100;
 
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwi1P0OM9i6MnRYNKYf7yEjNC2M-hT1H-BcMd2aiRQC-9EJ0_FkhOiMrKOMrjieSg6Xzg/exec";
 
@@ -245,7 +264,6 @@
         icon.innerText = isDark ? 'dark_mode' : 'light_mode';
         
         Chart.defaults.color = isDark ? '#333' : '#a0aec0';
-        
         if(chartInstance) {
             chartInstance.options.scales.y.grid.color = !isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
             chartInstance.options.scales.y.ticks.color = !isDark ? '#a0aec0' : '#718096';
@@ -278,7 +296,10 @@
         document.getElementById('sync-time').innerText = new Date().toLocaleTimeString('pt-BR');
         solicitarDadosDoServidor();
 
-        ['filter-ano', 'filter-mes', 'filter-filial', 'filter-veiculo', 'filter-equip', 'filter-desc', 'filter-situacao'].forEach(id => document.getElementById(id).addEventListener('change', updateDashboard));
+        // Sempre que um filtro mudar, a tabela reseta para 100 linhas para garantir renderização ultra-rápida.
+        ['filter-ano', 'filter-mes', 'filter-filial', 'filter-veiculo', 'filter-equip', 'filter-desc', 'filter-situacao'].forEach(id => {
+            document.getElementById(id).addEventListener('change', () => { maxTableRows = 100; updateDashboard(); });
+        });
         setInterval(solicitarDadosDoServidor, 40000);
     });
 
@@ -407,19 +428,28 @@
     }
 
     function clickMatrixCell(branch, equipment) {
+        maxTableRows = 100;
         document.getElementById('filter-filial').value = (document.getElementById('filter-filial').value === branch && !equipment) ? 'Tudo' : (branch || 'Tudo');
         if (equipment) document.getElementById('filter-equip').value = (document.getElementById('filter-equip').value === equipment) ? 'Tudo' : equipment;
         updateDashboard();
     }
 
-    function clickParetoItem(defectName) { document.getElementById('filter-desc').value = document.getElementById('filter-desc').value === defectName ? 'Tudo' : defectName; updateDashboard(); }
-    function clickVehicleItem(vehicleNum) { document.getElementById('filter-veiculo').value = document.getElementById('filter-veiculo').value === vehicleNum ? 'Tudo' : vehicleNum; updateDashboard(); }
+    function clickParetoItem(defectName) { maxTableRows = 100; document.getElementById('filter-desc').value = document.getElementById('filter-desc').value === defectName ? 'Tudo' : defectName; updateDashboard(); }
+    function clickVehicleItem(vehicleNum) { maxTableRows = 100; document.getElementById('filter-veiculo').value = document.getElementById('filter-veiculo').value === vehicleNum ? 'Tudo' : vehicleNum; updateDashboard(); }
 
     function setQuickFilter(mode, btn) {
+        maxTableRows = 100;
         document.querySelectorAll('.btn-quick').forEach(b => b.classList.remove('active')); btn.classList.add('active');
         currentDaysLimit = mode === 'tudo' ? 'Tudo' : parseInt(mode); updateDashboard();
     }
-    function toggleSort(col) { currentSort.desc = currentSort.column === col ? !currentSort.desc : true; currentSort.column = col; updateDashboard(); }
+    
+    function toggleSort(col) { maxTableRows = 100; currentSort.desc = currentSort.column === col ? !currentSort.desc : true; currentSort.column = col; updateDashboard(); }
+    
+    // Função acionada pelo botão no final da tabela
+    function carregarMaisLinhas() {
+        maxTableRows += 150;
+        updateDashboard(); // Refaz a tabela com o novo limite sem travar o browser
+    }
 
     function updateDashboard() {
         if (!osData.length) return;
@@ -431,7 +461,7 @@
         const fDesc = document.getElementById('filter-desc').value;
         const fSit = document.getElementById('filter-situacao').value;
 
-        // Filtro Geral da Tabela e KPIs
+        // Filtragem completa em memória (extremamente rápida)
         let filtered = osData.filter(item => {
             let matchDays = (currentDaysLimit === 'Tudo' || item.dias <= currentDaysLimit);
             return matchDays && (fAno === 'Tudo' || item.ano === fAno) && (fMes === 'Tudo' || item.mes === fMes) &&
@@ -443,64 +473,78 @@
         filtered.sort((a, b) => currentSort.column === 'dias' ? (currentSort.desc ? b.dias - a.dias : a.dias - b.dias) : (currentSort.desc ? b.dataISO.localeCompare(a.dataISO) : a.dataISO.localeCompare(b.dataISO)));
         currentFilteredData = filtered; 
 
+        // ==========================================
+        // ETAPA 1: PROCESSAMENTO DE DADOS OCULTOS (Rápido)
+        // ==========================================
         let totalDiasTabela = 0, totalDiasResolucao = 0, qtdResolvidas = 0;
         let veicDef = new Set();
-        let htmlTabela = '';
         let equipamentosUnicos = [...new Set(osData.map(i => i.equipamento))].sort();
         let matrix = {};
 
         filtered.forEach(item => {
-            if (item.situacao === 'ABERTA') {
-                totalDiasTabela += item.dias;
-            } else if (item.situacao === 'FECHADA') {
-                totalDiasResolucao += item.dias;
-                qtdResolvidas++;
-            }
-            
+            if (item.situacao === 'ABERTA') totalDiasTabela += item.dias;
+            else if (item.situacao === 'FECHADA') { totalDiasResolucao += item.dias; qtdResolvidas++; }
             veicDef.add(item.veiculo); 
             
             let f = item.filial, eq = item.equipamento;
             if (!matrix[f]) { matrix[f] = { rowTotal: 0 }; equipamentosUnicos.forEach(e => matrix[f][e] = 0); }
             matrix[f][eq] = (matrix[f][eq] || 0) + 1; matrix[f].rowTotal++;
+        });
 
+        // ==========================================
+        // ETAPA 2: RENDERIZAÇÃO FLUIDA DA TABELA (Lazy Load DOM)
+        // ==========================================
+        let htmlTabela = '';
+        let linhasVisiveis = filtered.slice(0, maxTableRows); // Corta a carga excessiva do DOM
+        
+        linhasVisiveis.forEach((item, index) => {
             let sitColor = item.situacao === 'FECHADA' ? 'var(--green)' : 'var(--red)';
-            htmlTabela += `<tr ${item.dias >= 60 && item.situacao === 'ABERTA' ? 'class="sla-critical"' : (item.dias >= 45 && item.situacao === 'ABERTA' ? 'class="sla-warning"' : '')}>
+            
+            // Lógica de classe CSS e Animação suave escalonada
+            let rowClass = 'fade-in';
+            if (item.dias >= 60 && item.situacao === 'ABERTA') rowClass += ' sla-critical';
+            else if (item.dias >= 45 && item.situacao === 'ABERTA') rowClass += ' sla-warning';
+            
+            // O delay suave dá o efeito de "cascata" no carregamento
+            let delay = (index % maxTableRows) * 0.003; 
+            
+            htmlTabela += `<tr class="${rowClass}" style="animation-delay: ${delay}s">
                 <td><b>${item.os}</b></td><td>${item.data}</td><td>${item.veiculo}</td><td>${item.filial}</td><td>${item.equipamento}</td><td>${item.defeito}</td><td><b>${item.dias}</b></td><td><b style="color:${sitColor}">${item.situacao}</b></td>
             </tr>`;
         });
         
-        document.getElementById('table-body').innerHTML = htmlTabela || `<tr><td colspan="8" style="text-align:center; padding:30px;">Nenhum registro encontrado com estes filtros.</td></tr>`;
+        // Se ainda houver dados escondidos, adiciona botão dinâmico
+        if (filtered.length > maxTableRows) {
+            let ocultos = filtered.length - maxTableRows;
+            htmlTabela += `<tr><td colspan="8" style="text-align:center; padding:15px; background:transparent;">
+                <button onclick="carregarMaisLinhas()" style="background:var(--primary); color:#fff; border:none; padding:8px 24px; border-radius:20px; font-weight:700; cursor:pointer; box-shadow:0 4px 10px rgba(15,117,97,0.3); transition:transform 0.2s;">
+                    Carregar Mais O.S. (${ocultos} ocultas)
+                </button>
+            </td></tr>`;
+        }
+        
+        document.getElementById('table-body').innerHTML = htmlTabela || `<tr><td colspan="8" style="text-align:center; padding:30px;">Nenhum registro encontrado.</td></tr>`;
         animateValue('table-total-dias', totalDiasTabela);
 
         // ==========================================
-        // CÁLCULO DINÂMICO DE FILTROS PARA OS RANKINGS
+        // ETAPA 3: PARETOS E GRÁFICOS (Renderizados Completamente)
         // ==========================================
-        
-        // Pareto de Defeitos se atualiza com tudo, EXCETO o próprio filtro de Defeito
         let pareto = {};
         osData.filter(item => {
             let matchDays = (currentDaysLimit === 'Tudo' || item.dias <= currentDaysLimit);
             return matchDays && (fAno === 'Tudo' || item.ano === fAno) && (fMes === 'Tudo' || item.mes === fMes) &&
                    (fFilial === 'Tudo' || item.filial === fFilial) && (fVeiculo === 'Tudo' || item.veiculo === fVeiculo) &&
                    (fEquip === 'Tudo' || item.equipamento === fEquip) && (fSit === 'Tudo' || item.situacao === fSit.toUpperCase());
-        }).forEach(item => {
-            pareto[item.desc_filtro] = (pareto[item.desc_filtro] || 0) + 1;
-        });
+        }).forEach(item => { pareto[item.desc_filtro] = (pareto[item.desc_filtro] || 0) + 1; });
 
-        // Veículos Críticos se atualiza com tudo, EXCETO o próprio filtro de Veículo
         let vehicleCounts = {};
         osData.filter(item => {
             let matchDays = (currentDaysLimit === 'Tudo' || item.dias <= currentDaysLimit);
             return matchDays && (fAno === 'Tudo' || item.ano === fAno) && (fMes === 'Tudo' || item.mes === fMes) &&
                    (fFilial === 'Tudo' || item.filial === fFilial) && (fEquip === 'Tudo' || item.equipamento === fEquip) && 
                    (fDesc === 'Tudo' || item.desc_filtro === fDesc) && (fSit === 'Tudo' || item.situacao === fSit.toUpperCase());
-        }).forEach(item => {
-            if (item.veiculo && item.veiculo !== '-') {
-                vehicleCounts[item.veiculo] = (vehicleCounts[item.veiculo] || 0) + 1;
-            }
-        });
+        }).forEach(item => { if (item.veiculo && item.veiculo !== '-') vehicleCounts[item.veiculo] = (vehicleCounts[item.veiculo] || 0) + 1; });
 
-        // Renderização dos Componentes Visuais com as Sparklines corrigidas
         const generateParetoList = (dataObj, maxVal, activeVal, clickFunc, prefix="") => {
             let html = '';
             Object.keys(dataObj).map(k=>({n:k,c:dataObj[k]})).sort((a,b)=>b.c-a.c).slice(0,10).forEach(p => {
@@ -520,8 +564,7 @@
         let maxVeic = Math.max(...Object.values(vehicleCounts), 1);
         document.getElementById('vehicle-container').innerHTML = generateParetoList(vehicleCounts, maxVeic, fVeiculo, 'clickVehicleItem', '🚘 ') || '<div style="font-size:10px; color:var(--text-muted); padding:10px;">Sem dados.</div>';
 
-        // Matriz Cruzada
-        document.querySelector('#matrix-table wreckage tr, #matrix-table thead').innerHTML = `<tr><th>Filial</th>${equipamentosUnicos.map(e => `<th>${e}</th>`).join('')}<th>Total</th></tr>`;
+        document.querySelector('#matrix-table thead').innerHTML = `<tr><th>Filial</th>${equipamentosUnicos.map(e => `<th>${e}</th>`).join('')}<th>Total</th></tr>`;
         let mHTML = '', colTotals = {}, grandTotal = 0;
         equipamentosUnicos.forEach(e => colTotals[e] = 0);
 
@@ -540,7 +583,6 @@
 
         updateChart(equipamentosUnicos, colTotals);
 
-        // KPIs Card
         let abertasExatas = filtered.filter(i => i.situacao === 'ABERTA').length;
         let fechadasExatas = filtered.filter(i => i.situacao === 'FECHADA').length;
         let tot = abertasExatas + fechadasExatas;
@@ -590,6 +632,7 @@
                         if (elements.length > 0) {
                             const index = elements[0].index;
                             const label = chartInstance.data.labels[index];
+                            maxTableRows = 100; // Reseta rolagem antes do filtro
                             const selEquip = document.getElementById('filter-equip');
                             selEquip.value = (selEquip.value === label) ? 'Tudo' : label;
                             updateDashboard();
@@ -618,10 +661,57 @@
         let link = document.createElement("a"); 
         link.href = URL.createObjectURL(blob); 
         link.download = `Relatório_OS_${dataHoje}.csv`;
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+
+    function abrirModalPDF() {
+        const estruturaColunas = [
+            { id: 'os', label: 'O.S.' }, { id: 'data', label: 'Data' }, { id: 'veiculo', label: 'Veículo' },
+            { id: 'filial', label: 'Filial' }, { id: 'equipamento', label: 'Equipamento' },
+            { id: 'defeito', label: 'Descrição' }, { id: 'dias', label: 'Dias' }, { id: 'situacao', label: 'Status' }
+        ];
+        let html = '';
+        estruturaColunas.forEach(col => {
+            html += `<label style="display:flex; align-items:center; gap:10px; font-size:12px; font-weight:600; cursor:pointer; padding: 4px 0;">
+                <input type="checkbox" value="${col.id}" checked data-label="${col.label}" style="width:16px; height:16px; accent-color:var(--primary); cursor:pointer;">
+                ${col.label}
+            </label>`;
+        });
+        document.getElementById('pdfColumnsCheckboxes').innerHTML = html;
+        document.getElementById('pdfModal').style.display = 'flex';
+    }
+
+    function fecharModalPDF() { document.getElementById('pdfModal').style.display = 'none'; }
+
+    function gerarPDF() {
+        if (!currentFilteredData || currentFilteredData.length === 0) { alert("Não há dados visíveis para estruturar no PDF."); return; }
+        const selecionados = document.querySelectorAll('#pdfColumnsCheckboxes input[type="checkbox"]:checked');
+        if (selecionados.length === 0) { alert("Selecione ao menos uma coluna para compor o documento."); return; }
+
+        const colunasAlvo = Array.from(selecionados).map(cb => ({ id: cb.value, label: cb.getAttribute('data-label') }));
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'landscape' });
+
+        doc.setFont("Helvetica", "bold"); doc.setFontSize(16); doc.setTextColor(15, 117, 97);
+        doc.text("PARVI TRANSPORTES - CENTRAL DE O.S", 14, 15);
         
-        document.body.appendChild(link); 
-        link.click(); 
-        document.body.removeChild(link);
+        doc.setFontSize(10); doc.setFont("Helvetica", "normal"); doc.setTextColor(100, 110, 120);
+        let hoje = new Date(); let dataHoraEmissão = hoje.toLocaleDateString('pt-BR') + ' ' + hoje.toLocaleTimeString('pt-BR');
+        doc.text(`Filtro Aplicado | Emissão: ${dataHoraEmissão} | Registros Localizados: ${currentFilteredData.length}`, 14, 21);
+
+        const cabeçalhosPDF = colunasAlvo.map(c => c.label);
+        const linhasPDF = currentFilteredData.map(item => colunasAlvo.map(c => item[c.id]));
+
+        doc.autoTable({
+            head: [cabeçalhosPDF], body: linhasPDF, startY: 26, theme: 'striped',
+            headStyles: { fillColor: [15, 117, 97], fontSize: 9, fontStyle: 'bold' },
+            bodyStyles: { fontSize: 8, textColor: [40, 40, 40] }, alternateRowStyles: { fillColor: [245, 247, 246] },
+            margin: { top: 25, bottom: 15, left: 14, right: 14 }, styles: { overflow: 'linebreak', cellPadding: 4 }
+        });
+
+        let dia = String(hoje.getDate()).padStart(2, '0'); let mes = String(hoje.getMonth() + 1).padStart(2, '0'); let ano = hoje.getFullYear();
+        doc.save(`Relatório_OS_${dia}_${mes}_${ano}.pdf`);
+        fecharModalPDF();
     }
 </script>
 </body>
