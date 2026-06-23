@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard O.S - Segsat</title>
     
-    <!-- Fontes, Ícones e Motores de Gráficos e PDF do Google/CDN -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,600,1,0" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -46,7 +45,7 @@
         
         .live { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; background: rgba(0,0,0,0.2); padding: 5px 10px; border-radius: 20px; }
         .dot { width: 8px; height: 8px; background: #4eff7e; border-radius: 50%; animation: pulse 1.5s infinite; }
-        .dot.error { background: #ff4e4e; animation: none; }
+        .dot.error { background: #ff4e4e; animation: none; box-shadow: 0 0 8px #ff4e4e; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(78,255,126,0.6); } 70% { box-shadow: 0 0 0 6px rgba(78,255,126,0); } 100% { box-shadow: 0 0 0 0 rgba(78,255,126,0); } }
 
         .top-panel { display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
@@ -78,7 +77,6 @@
         .box { background: var(--surface); border-radius: 12px; box-shadow: var(--shadow); display: flex; flex-direction: column; min-height: 0; overflow: hidden; transition: var(--transition); }
         .b-header { padding: 12px 15px; font-size: 12px; font-weight: 700; color: var(--text-main); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; text-transform: uppercase; background: rgba(0,0,0,0.02); }
         
-        /* Aceleração de Hardware para Rolagem Fluida */
         .scroll { flex: 1; overflow-y: auto; overflow-x: auto; position: relative; will-change: scroll-position; }
         
         table { width: 100%; border-collapse: collapse; font-size: 11px; }
@@ -115,7 +113,6 @@
         .skeleton { background: linear-gradient(90deg, var(--bg-color) 25%, var(--border) 50%, var(--bg-color) 75%); background-size: 200% 100%; animation: loading 1.5s infinite; border-radius: 4px; height: 14px; margin: 4px 0; }
         @keyframes loading { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
 
-        /* Animação Suave em Cascata para a Tabela */
         .fade-in { animation: fadeInRow 0.3s ease-out forwards; opacity: 0; }
         @keyframes fadeInRow { to { opacity: 1; transform: translateY(0); } from { opacity: 0; transform: translateY(5px); } }
 
@@ -251,8 +248,9 @@
     let chartInstance = null, gaugeInstance = null;
     let osData = [], currentFilteredData = [];
     
-    // VARIÁVEL DE FLUIDEZ DE MEMÓRIA (PAGINAÇÃO VIRTUAL)
+    // CACHE DE SEGURANÇA E FLUIDEZ DO BI
     let maxTableRows = 100;
+    let oldHtmlTabela = ""; 
 
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwi1P0OM9i6MnRYNKYf7yEjNC2M-hT1H-BcMd2aiRQC-9EJ0_FkhOiMrKOMrjieSg6Xzg/exec";
 
@@ -296,13 +294,13 @@
         document.getElementById('sync-time').innerText = new Date().toLocaleTimeString('pt-BR');
         solicitarDadosDoServidor();
 
-        // Sempre que um filtro mudar, a tabela reseta para 100 linhas para garantir renderização ultra-rápida.
         ['filter-ano', 'filter-mes', 'filter-filial', 'filter-veiculo', 'filter-equip', 'filter-desc', 'filter-situacao'].forEach(id => {
-            document.getElementById(id).addEventListener('change', () => { maxTableRows = 100; updateDashboard(); });
+            document.getElementById(id).addEventListener('change', () => { maxTableRows = 100; oldHtmlTabela = ""; updateDashboard(); });
         });
         setInterval(solicitarDadosDoServidor, 40000);
     });
 
+    // OPTIMIZED: Sincronização em segundo plano silenciosa em caso de flutuação de rede
     function solicitarDadosDoServidor() {
         fetch(WEB_APP_URL, { redirect: 'follow' })
             .then(response => response.text())
@@ -328,8 +326,17 @@
                     }
                 } catch (e) {
                     document.getElementById('live-dot').classList.add('error');
+                    if (osData.length === 0) {
+                        document.getElementById('table-body').innerHTML = `<tr><td colspan="8" style="text-align:center; color:red; padding:40px;">Falha estrutural na API do Sheets.</td></tr>`;
+                    }
                 }
-            }).catch(erro => { document.getElementById('live-dot').classList.add('error'); });
+            })
+            .catch(erro => {
+                document.getElementById('live-dot').classList.add('error');
+                if (osData.length === 0) {
+                    document.getElementById('table-body').innerHTML = `<tr><td colspan="8" style="text-align:center; color:red; padding:40px;">Falha de comunicação com o servidor.</td></tr>`;
+                }
+            });
     }
 
     function processarDadosPlanilha(dados) {
@@ -428,27 +435,25 @@
     }
 
     function clickMatrixCell(branch, equipment) {
-        maxTableRows = 100;
+        maxTableRows = 100; oldHtmlTabela = "";
         document.getElementById('filter-filial').value = (document.getElementById('filter-filial').value === branch && !equipment) ? 'Tudo' : (branch || 'Tudo');
         if (equipment) document.getElementById('filter-equip').value = (document.getElementById('filter-equip').value === equipment) ? 'Tudo' : equipment;
         updateDashboard();
     }
 
-    function clickParetoItem(defectName) { maxTableRows = 100; document.getElementById('filter-desc').value = document.getElementById('filter-desc').value === defectName ? 'Tudo' : defectName; updateDashboard(); }
-    function clickVehicleItem(vehicleNum) { maxTableRows = 100; document.getElementById('filter-veiculo').value = document.getElementById('filter-veiculo').value === vehicleNum ? 'Tudo' : vehicleNum; updateDashboard(); }
+    function clickParetoItem(defectName) { maxTableRows = 100; oldHtmlTabela = ""; document.getElementById('filter-desc').value = document.getElementById('filter-desc').value === defectName ? 'Tudo' : defectName; updateDashboard(); }
+    function clickVehicleItem(vehicleNum) { maxTableRows = 100; oldHtmlTabela = ""; document.getElementById('filter-veiculo').value = document.getElementById('filter-veiculo').value === vehicleNum ? 'Tudo' : vehicleNum; updateDashboard(); }
 
     function setQuickFilter(mode, btn) {
-        maxTableRows = 100;
+        maxTableRows = 100; oldHtmlTabela = "";
         document.querySelectorAll('.btn-quick').forEach(b => b.classList.remove('active')); btn.classList.add('active');
         currentDaysLimit = mode === 'tudo' ? 'Tudo' : parseInt(mode); updateDashboard();
     }
+    function toggleSort(col) { maxTableRows = 100; oldHtmlTabela = ""; currentSort.desc = currentSort.column === col ? !currentSort.desc : true; currentSort.column = col; updateDashboard(); }
     
-    function toggleSort(col) { maxTableRows = 100; currentSort.desc = currentSort.column === col ? !currentSort.desc : true; currentSort.column = col; updateDashboard(); }
-    
-    // Função acionada pelo botão no final da tabela
     function carregarMaisLinhas() {
-        maxTableRows += 150;
-        updateDashboard(); // Refaz a tabela com o novo limite sem travar o browser
+        maxTableRows += 150; oldHtmlTabela = "";
+        updateDashboard();
     }
 
     function updateDashboard() {
@@ -461,7 +466,6 @@
         const fDesc = document.getElementById('filter-desc').value;
         const fSit = document.getElementById('filter-situacao').value;
 
-        // Filtragem completa em memória (extremamente rápida)
         let filtered = osData.filter(item => {
             let matchDays = (currentDaysLimit === 'Tudo' || item.dias <= currentDaysLimit);
             return matchDays && (fAno === 'Tudo' || item.ano === fAno) && (fMes === 'Tudo' || item.mes === fMes) &&
@@ -473,9 +477,6 @@
         filtered.sort((a, b) => currentSort.column === 'dias' ? (currentSort.desc ? b.dias - a.dias : a.dias - b.dias) : (currentSort.desc ? b.dataISO.localeCompare(a.dataISO) : a.dataISO.localeCompare(b.dataISO)));
         currentFilteredData = filtered; 
 
-        // ==========================================
-        // ETAPA 1: PROCESSAMENTO DE DADOS OCULTOS (Rápido)
-        // ==========================================
         let totalDiasTabela = 0, totalDiasResolucao = 0, qtdResolvidas = 0;
         let veicDef = new Set();
         let equipamentosUnicos = [...new Set(osData.map(i => i.equipamento))].sort();
@@ -492,43 +493,40 @@
         });
 
         // ==========================================
-        // ETAPA 2: RENDERIZAÇÃO FLUIDA DA TABELA (Lazy Load DOM)
+        // CACHE DE COMPARAÇÃO HTML (Evita repaints agressivos do DOM)
         // ==========================================
         let htmlTabela = '';
-        let linhasVisiveis = filtered.slice(0, maxTableRows); // Corta a carga excessiva do DOM
+        let linhasVisiveis = filtered.slice(0, maxTableRows);
         
         linhasVisiveis.forEach((item, index) => {
             let sitColor = item.situacao === 'FECHADA' ? 'var(--green)' : 'var(--red)';
-            
-            // Lógica de classe CSS e Animação suave escalonada
             let rowClass = 'fade-in';
             if (item.dias >= 60 && item.situacao === 'ABERTA') rowClass += ' sla-critical';
-            else if (item.dias >= 45 && item.situacao === 'ABERTA') rowClass += ' sla-warning';
+            else if (item.dias >= 45 && item.situacao === 'ABERTA' && item.situacao === 'ABERTA') rowClass += ' sla-warning';
             
-            // O delay suave dá o efeito de "cascata" no carregamento
-            let delay = (index % maxTableRows) * 0.003; 
+            let delay = (index % maxTableRows) * 0.002; 
             
             htmlTabela += `<tr class="${rowClass}" style="animation-delay: ${delay}s">
                 <td><b>${item.os}</b></td><td>${item.data}</td><td>${item.veiculo}</td><td>${item.filial}</td><td>${item.equipamento}</td><td>${item.defeito}</td><td><b>${item.dias}</b></td><td><b style="color:${sitColor}">${item.situacao}</b></td>
             </tr>`;
         });
         
-        // Se ainda houver dados escondidos, adiciona botão dinâmico
         if (filtered.length > maxTableRows) {
             let ocultos = filtered.length - maxTableRows;
-            htmlTabela += `<tr><td colspan="8" style="text-align:center; padding:15px; background:transparent;">
-                <button onclick="carregarMaisLinhas()" style="background:var(--primary); color:#fff; border:none; padding:8px 24px; border-radius:20px; font-weight:700; cursor:pointer; box-shadow:0 4px 10px rgba(15,117,97,0.3); transition:transform 0.2s;">
+            htmlTabela += `<tr><td colspan="8" style="text-align:center; padding:12px; background:transparent;">
+                <button onclick="carregarMaisLinhas()" style="background:var(--primary); color:#fff; border:none; padding:6px 20px; border-radius:20px; font-weight:700; cursor:pointer; box-shadow:0 4px 10px rgba(15,117,97,0.25); transition:transform 0.2s;">
                     Carregar Mais O.S. (${ocultos} ocultas)
                 </button>
             </td></tr>`;
         }
         
-        document.getElementById('table-body').innerHTML = htmlTabela || `<tr><td colspan="8" style="text-align:center; padding:30px;">Nenhum registro encontrado.</td></tr>`;
+        // Só renderiza se houver real alteração nos dados exibidos
+        if (htmlTabela !== oldHtmlTabela) {
+            document.getElementById('table-body').innerHTML = htmlTabela || `<tr><td colspan="8" style="text-align:center; padding:30px;">Nenhum registro encontrado.</td></tr>`;
+            oldHtmlTabela = htmlTabela;
+        }
         animateValue('table-total-dias', totalDiasTabela);
 
-        // ==========================================
-        // ETAPA 3: PARETOS E GRÁFICOS (Renderizados Completamente)
-        // ==========================================
         let pareto = {};
         osData.filter(item => {
             let matchDays = (currentDaysLimit === 'Tudo' || item.dias <= currentDaysLimit);
@@ -596,14 +594,19 @@
         updateGauge(eff);
     }
 
+    // OPTIMIZED: Atualização in-place do Velocímetro (Impede flashes visuais)
     function updateGauge(percent) {
-        if(gaugeInstance) gaugeInstance.destroy();
-        const ctx = document.getElementById('gaugeChart').getContext('2d');
-        gaugeInstance = new Chart(ctx, {
-            type: 'doughnut',
-            data: { datasets: [{ data: [percent, 100 - percent], backgroundColor: ['#0f7561', 'rgba(0,0,0,0.05)'], borderWidth: 0, borderRadius: [4,0] }] },
-            options: { responsive: true, maintainAspectRatio: false, rotation: 270, circumference: 180, cutout: '80%', plugins: { tooltip: {enabled: false}, legend: {display: false} } }
-        });
+        if(gaugeInstance) {
+            gaugeInstance.data.datasets[0].data = [percent, 100 - percent];
+            gaugeInstance.update();
+        } else {
+            const ctx = document.getElementById('gaugeChart').getContext('2d');
+            gaugeInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: { datasets: [{ data: [percent, 100 - percent], backgroundColor: ['#0f7561', 'rgba(0,0,0,0.05)'], borderWidth: 0, borderRadius: [4,0] }] },
+                options: { responsive: true, maintainAspectRatio: false, rotation: 270, circumference: 180, cutout: '80%', plugins: { tooltip: {enabled: false}, legend: {display: false} } }
+            });
+        }
     }
 
     function updateChart(labelsArray, dataTotals) {
@@ -632,8 +635,8 @@
                         if (elements.length > 0) {
                             const index = elements[0].index;
                             const label = chartInstance.data.labels[index];
-                            maxTableRows = 100; // Reseta rolagem antes do filtro
                             const selEquip = document.getElementById('filter-equip');
+                            maxTableRows = 100; oldHtmlTabela = "";
                             selEquip.value = (selEquip.value === label) ? 'Tudo' : label;
                             updateDashboard();
                         }
@@ -661,7 +664,10 @@
         let link = document.createElement("a"); 
         link.href = URL.createObjectURL(blob); 
         link.download = `Relatório_OS_${dataHoje}.csv`;
-        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        
+        document.body.appendChild(link); 
+        link.click(); 
+        document.body.removeChild(link);
     }
 
     function abrirModalPDF() {
