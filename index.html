@@ -119,6 +119,10 @@
         .scroll::-webkit-scrollbar { width: 6px; height: 6px; }
         .scroll::-webkit-scrollbar-track { background: var(--bg-color); border-radius: 4px; }
         .scroll::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 4px; opacity: 0.5; }
+        
+        /* Mensagem de Feedback Positivo */
+        .all-good-msg { text-align: center; padding: 30px 10px; color: var(--primary); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; font-weight: 700; font-size: 13px; opacity: 0.9; }
+        .all-good-msg span { font-size: 32px; margin-bottom: 4px; }
     </style>
 </head>
 <body>
@@ -251,6 +255,7 @@
     // CACHE DE SEGURANÇA E FLUIDEZ DO BI
     let maxTableRows = 100;
     let oldHtmlTabela = ""; 
+    const msgTudoBem = `<div class="all-good-msg"><span class="material-symbols-rounded">check_circle</span>Esta tudo bem por aqui</div>`;
 
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwi1P0OM9i6MnRYNKYf7yEjNC2M-hT1H-BcMd2aiRQC-9EJ0_FkhOiMrKOMrjieSg6Xzg/exec";
 
@@ -300,7 +305,6 @@
         setInterval(solicitarDadosDoServidor, 40000);
     });
 
-    // OPTIMIZED: Sincronização em segundo plano silenciosa em caso de flutuação de rede
     function solicitarDadosDoServidor() {
         fetch(WEB_APP_URL, { redirect: 'follow' })
             .then(response => response.text())
@@ -333,9 +337,6 @@
             })
             .catch(erro => {
                 document.getElementById('live-dot').classList.add('error');
-                if (osData.length === 0) {
-                    document.getElementById('table-body').innerHTML = `<tr><td colspan="8" style="text-align:center; color:red; padding:40px;">Falha de comunicação com o servidor.</td></tr>`;
-                }
             });
     }
 
@@ -466,6 +467,7 @@
         const fDesc = document.getElementById('filter-desc').value;
         const fSit = document.getElementById('filter-situacao').value;
 
+        // FILTRO CENTRALIZADO E SINCRONIZADO PARA TODOS OS COMPONENTES
         let filtered = osData.filter(item => {
             let matchDays = (currentDaysLimit === 'Tudo' || item.dias <= currentDaysLimit);
             return matchDays && (fAno === 'Tudo' || item.ano === fAno) && (fMes === 'Tudo' || item.mes === fMes) &&
@@ -478,14 +480,22 @@
         currentFilteredData = filtered; 
 
         let totalDiasTabela = 0, totalDiasResolucao = 0, qtdResolvidas = 0;
-        let veicDef = new Set();
+        let veicDef = new Set(), pareto = {}, vehicleCounts = {};
         let equipamentosUnicos = [...new Set(osData.map(i => i.equipamento))].sort();
         let matrix = {};
 
+        // LOOP ÚNICO DE ALTA PERFORMANCE PARA ALIMENTAR TODOS OS CARDS
         filtered.forEach(item => {
-            if (item.situacao === 'ABERTA') totalDiasTabela += item.dias;
-            else if (item.situacao === 'FECHADA') { totalDiasResolucao += item.dias; qtdResolvidas++; }
+            if (item.situacao === 'ABERTA') {
+                totalDiasTabela += item.dias;
+            } else if (item.situacao === 'FECHADA') {
+                totalDiasResolucao += item.dias;
+                qtdResolvidas++;
+            }
+            
             veicDef.add(item.veiculo); 
+            pareto[item.desc_filtro] = (pareto[item.desc_filtro] || 0) + 1;
+            if (item.veiculo && item.veiculo !== '-') vehicleCounts[item.veiculo] = (vehicleCounts[item.veiculo] || 0) + 1;
             
             let f = item.filial, eq = item.equipamento;
             if (!matrix[f]) { matrix[f] = { rowTotal: 0 }; equipamentosUnicos.forEach(e => matrix[f][e] = 0); }
@@ -493,7 +503,7 @@
         });
 
         // ==========================================
-        // CACHE DE COMPARAÇÃO HTML (Evita repaints agressivos do DOM)
+        // RENDERIZAÇÃO DA TABELA (COM MENSAGEM "TUDO BEM")
         // ==========================================
         let htmlTabela = '';
         let linhasVisiveis = filtered.slice(0, maxTableRows);
@@ -502,7 +512,7 @@
             let sitColor = item.situacao === 'FECHADA' ? 'var(--green)' : 'var(--red)';
             let rowClass = 'fade-in';
             if (item.dias >= 60 && item.situacao === 'ABERTA') rowClass += ' sla-critical';
-            else if (item.dias >= 45 && item.situacao === 'ABERTA' && item.situacao === 'ABERTA') rowClass += ' sla-warning';
+            else if (item.dias >= 45 && item.situacao === 'ABERTA') rowClass += ' sla-warning';
             
             let delay = (index % maxTableRows) * 0.002; 
             
@@ -520,29 +530,17 @@
             </td></tr>`;
         }
         
-        // Só renderiza se houver real alteração nos dados exibidos
-        if (htmlTabela !== oldHtmlTabela) {
-            document.getElementById('table-body').innerHTML = htmlTabela || `<tr><td colspan="8" style="text-align:center; padding:30px;">Nenhum registro encontrado.</td></tr>`;
-            oldHtmlTabela = htmlTabela;
+        let finalHtmlTabela = htmlTabela || `<tr><td colspan="8">${msgTudoBem}</td></tr>`;
+        if (finalHtmlTabela !== oldHtmlTabela) {
+            document.getElementById('table-body').innerHTML = finalHtmlTabela;
+            oldHtmlTabela = finalHtmlTabela;
         }
+        
         animateValue('table-total-dias', totalDiasTabela);
 
-        let pareto = {};
-        osData.filter(item => {
-            let matchDays = (currentDaysLimit === 'Tudo' || item.dias <= currentDaysLimit);
-            return matchDays && (fAno === 'Tudo' || item.ano === fAno) && (fMes === 'Tudo' || item.mes === fMes) &&
-                   (fFilial === 'Tudo' || item.filial === fFilial) && (fVeiculo === 'Tudo' || item.veiculo === fVeiculo) &&
-                   (fEquip === 'Tudo' || item.equipamento === fEquip) && (fSit === 'Tudo' || item.situacao === fSit.toUpperCase());
-        }).forEach(item => { pareto[item.desc_filtro] = (pareto[item.desc_filtro] || 0) + 1; });
-
-        let vehicleCounts = {};
-        osData.filter(item => {
-            let matchDays = (currentDaysLimit === 'Tudo' || item.dias <= currentDaysLimit);
-            return matchDays && (fAno === 'Tudo' || item.ano === fAno) && (fMes === 'Tudo' || item.mes === fMes) &&
-                   (fFilial === 'Tudo' || item.filial === fFilial) && (fEquip === 'Tudo' || item.equipamento === fEquip) && 
-                   (fDesc === 'Tudo' || item.desc_filtro === fDesc) && (fSit === 'Tudo' || item.situacao === fSit.toUpperCase());
-        }).forEach(item => { if (item.veiculo && item.veiculo !== '-') vehicleCounts[item.veiculo] = (vehicleCounts[item.veiculo] || 0) + 1; });
-
+        // ==========================================
+        // PARETOS (COM MENSAGEM "TUDO BEM")
+        // ==========================================
         const generateParetoList = (dataObj, maxVal, activeVal, clickFunc, prefix="") => {
             let html = '';
             Object.keys(dataObj).map(k=>({n:k,c:dataObj[k]})).sort((a,b)=>b.c-a.c).slice(0,10).forEach(p => {
@@ -557,11 +555,14 @@
         };
 
         let maxPareto = Math.max(...Object.values(pareto), 1);
-        document.getElementById('pareto-container').innerHTML = generateParetoList(pareto, maxPareto, fDesc, 'clickParetoItem') || '<div style="font-size:10px; color:var(--text-muted); padding:10px;">Sem dados.</div>';
+        document.getElementById('pareto-container').innerHTML = generateParetoList(pareto, maxPareto, fDesc, 'clickParetoItem') || msgTudoBem;
 
         let maxVeic = Math.max(...Object.values(vehicleCounts), 1);
-        document.getElementById('vehicle-container').innerHTML = generateParetoList(vehicleCounts, maxVeic, fVeiculo, 'clickVehicleItem', '🚘 ') || '<div style="font-size:10px; color:var(--text-muted); padding:10px;">Sem dados.</div>';
+        document.getElementById('vehicle-container').innerHTML = generateParetoList(vehicleCounts, maxVeic, fVeiculo, 'clickVehicleItem', '🚘 ') || msgTudoBem;
 
+        // ==========================================
+        // MATRIZ CRUZADA (COM MENSAGEM "TUDO BEM")
+        // ==========================================
         document.querySelector('#matrix-table thead').innerHTML = `<tr><th>Filial</th>${equipamentosUnicos.map(e => `<th>${e}</th>`).join('')}<th>Total</th></tr>`;
         let mHTML = '', colTotals = {}, grandTotal = 0;
         equipamentosUnicos.forEach(e => colTotals[e] = 0);
@@ -576,11 +577,17 @@
             });
             mHTML += `<td><b>${d.rowTotal}</b></td></tr>`; grandTotal += d.rowTotal;
         });
+        
+        if (mHTML === '') {
+            mHTML = `<tr><td colspan="${equipamentosUnicos.length + 2}">${msgTudoBem}</td></tr>`;
+        }
+        
         document.getElementById('matrix-table-body').innerHTML = mHTML;
         document.querySelector('#matrix-table tfoot').innerHTML = `<tr><td>Total</td>${equipamentosUnicos.map(eq => `<td><b>${colTotals[eq]}</b></td>`).join('')}<td><b>${grandTotal}</b></td></tr>`;
 
         updateChart(equipamentosUnicos, colTotals);
 
+        // Atualização Segura de KPIs
         let abertasExatas = filtered.filter(i => i.situacao === 'ABERTA').length;
         let fechadasExatas = filtered.filter(i => i.situacao === 'FECHADA').length;
         let tot = abertasExatas + fechadasExatas;
@@ -594,7 +601,6 @@
         updateGauge(eff);
     }
 
-    // OPTIMIZED: Atualização in-place do Velocímetro (Impede flashes visuais)
     function updateGauge(percent) {
         if(gaugeInstance) {
             gaugeInstance.data.datasets[0].data = [percent, 100 - percent];
@@ -664,10 +670,7 @@
         let link = document.createElement("a"); 
         link.href = URL.createObjectURL(blob); 
         link.download = `Relatório_OS_${dataHoje}.csv`;
-        
-        document.body.appendChild(link); 
-        link.click(); 
-        document.body.removeChild(link);
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
     }
 
     function abrirModalPDF() {
