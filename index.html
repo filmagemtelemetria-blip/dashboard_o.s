@@ -59,8 +59,8 @@
         .btn-export:hover { background: #2b6cb0; transform: translateY(-2px); }
 
         .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
-        .f-card { background: var(--bg-color); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; display: flex; align-items: center; transition: var(--transition); }
-        .f-card label { background: var(--primary); color: #fff; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 4px; padding: 8px 10px; flex-shrink: 0; transition: var(--transition); }
+        .f-card { background: var(--bg-color); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; transition: var(--transition); }
+        .f-card label { background: var(--primary); color: #fff; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 4px; padding: 8px 10px; flex-shrink: 0; border-radius: 7px 0 0 7px; transition: var(--transition); }
         .f-card select { width: 100%; padding: 6px; border: none; font-size: 12px; outline: none; color: var(--text-main); background: transparent; cursor: pointer; font-weight: 600; }
 
         .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
@@ -120,7 +120,6 @@
         .scroll::-webkit-scrollbar-track { background: var(--bg-color); border-radius: 4px; }
         .scroll::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 4px; opacity: 0.5; }
         
-        /* Mensagem de Feedback Positivo */
         .all-good-msg { text-align: center; padding: 30px 10px; color: var(--primary); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; font-weight: 700; font-size: 13px; opacity: 0.9; }
         .all-good-msg span { font-size: 32px; margin-bottom: 4px; }
     </style>
@@ -161,7 +160,23 @@
                 <div class="f-card"><label><span class="material-symbols-rounded">store</span> Filial</label><select id="filter-filial"><option value="Tudo">Tudo</option></select></div>
                 <div class="f-card"><label><span class="material-symbols-rounded">directions_car</span> Veículo</label><select id="filter-veiculo"><option value="Tudo">Tudo</option></select></div>
                 <div class="f-card"><label><span class="material-symbols-rounded">videocam</span> Equip.</label><select id="filter-equip"><option value="Tudo">Tudo</option></select></div>
-                <div class="f-card"><label><span class="material-symbols-rounded">build</span> Defeito</label><select id="filter-desc"><option value="Tudo">Tudo</option></select></div>
+                
+                <div class="f-card" style="position: relative;" id="dropdown-desc-container">
+                    <label><span class="material-symbols-rounded">build</span> Defeito</label>
+                    <div id="custom-desc-trigger" onclick="toggleDescDropdown(event)" style="width: 100%; padding: 6px 10px; font-size: 12px; font-weight: 600; color: var(--text-main); cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: transparent;">
+                        <span id="custom-desc-text" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px;">Tudo</span>
+                        <span class="material-symbols-rounded" style="font-size: 16px;">expand_more</span>
+                    </div>
+                    <div id="custom-desc-menu" style="display: none; position: absolute; top: 100%; left: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); z-index: 1000; max-height: 280px; padding: 8px; flex-direction: column; gap: 6px; min-width: 240px; width: max-content;">
+                        <input type="text" id="custom-desc-search" placeholder="Pesquisar por nome..." oninput="filterDescOptions()" style="width: 100%; padding: 6px 8px; font-size: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-color); color: var(--text-main); outline: none;">
+                        <div style="display: flex; gap: 10px; padding: 2px 0; border-bottom: 1px solid var(--border); margin-bottom: 2px;">
+                            <button type="button" onclick="selectAllDesc(true)" style="background: none; border: none; color: var(--primary); font-size: 11px; font-weight: 700; cursor: pointer;">Marcar Todos</button>
+                            <button type="button" onclick="selectAllDesc(false)" style="background: none; border: none; color: var(--red); font-size: 11px; font-weight: 700; cursor: pointer;">Limpar</button>
+                        </div>
+                        <div id="custom-desc-options" style="overflow-y: auto; max-height: 170px; display: flex; flex-direction: column; gap: 2px;"></div>
+                    </div>
+                </div>
+
                 <div class="f-card"><label><span class="material-symbols-rounded">rule</span> Status</label><select id="filter-situacao"><option value="Tudo">Tudo</option></select></div>
             </div>
         </div>
@@ -252,10 +267,11 @@
     let chartInstance = null, gaugeInstance = null;
     let osData = [], currentFilteredData = [];
     
-    // CACHE DE SEGURANÇA E FLUIDEZ DO BI
     let maxTableRows = 100;
     let oldHtmlTabela = ""; 
     const msgTudoBem = `<div class="all-good-msg"><span class="material-symbols-rounded">check_circle</span>Esta tudo bem por aqui</div>`;
+
+    let selectedDescOptions = [];
 
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwi1P0OM9i6MnRYNKYf7yEjNC2M-hT1H-BcMd2aiRQC-9EJ0_FkhOiMrKOMrjieSg6Xzg/exec";
 
@@ -294,16 +310,70 @@
         window.requestAnimationFrame(step);
     }
 
+    document.addEventListener('click', function(e) {
+        const container = document.getElementById('dropdown-desc-container');
+        const menu = document.getElementById('custom-desc-menu');
+        if (container && !container.contains(e.target)) {
+            menu.style.display = 'none';
+        }
+    });
+
     document.addEventListener("DOMContentLoaded", function() {
         Chart.defaults.font.family = "'Inter', sans-serif";
         document.getElementById('sync-time').innerText = new Date().toLocaleTimeString('pt-BR');
         solicitarDadosDoServidor();
 
-        ['filter-ano', 'filter-mes', 'filter-filial', 'filter-veiculo', 'filter-equip', 'filter-desc', 'filter-situacao'].forEach(id => {
+        ['filter-ano', 'filter-mes', 'filter-filial', 'filter-veiculo', 'filter-equip', 'filter-situacao'].forEach(id => {
             document.getElementById(id).addEventListener('change', () => { maxTableRows = 100; oldHtmlTabela = ""; updateDashboard(); });
         });
         setInterval(solicitarDadosDoServidor, 40000);
     });
+
+    function toggleDescDropdown(event) {
+        event.stopPropagation();
+        const menu = document.getElementById('custom-desc-menu');
+        menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
+        if(menu.style.display === 'flex') document.getElementById('custom-desc-search').focus();
+    }
+
+    function filterDescOptions() {
+        const query = document.getElementById('custom-desc-search').value.toUpperCase();
+        const labels = document.querySelectorAll('#custom-desc-options label');
+        labels.forEach(lbl => {
+            const txt = lbl.textContent.toUpperCase();
+            lbl.style.display = txt.includes(query) ? 'flex' : 'none';
+        });
+    }
+
+    function handleDescChange(cb) {
+        if (cb.checked) {
+            if (!selectedDescOptions.includes(cb.value)) selectedDescOptions.push(cb.value);
+        } else {
+            selectedDescOptions = selectedDescOptions.filter(v => v !== cb.value);
+        }
+        maxTableRows = 100; oldHtmlTabela = "";
+        updateDescTriggerText(); updateDashboard();
+    }
+
+    function selectAllDesc(action) {
+        const checkboxes = document.querySelectorAll('#custom-desc-options input[type="checkbox"]');
+        checkboxes.forEach(cb => {
+            if (cb.parentElement.style.display !== 'none') {
+                cb.checked = action;
+                if (action) { if (!selectedDescOptions.includes(cb.value)) selectedDescOptions.push(cb.value); } 
+                else { selectedDescOptions = selectedDescOptions.filter(v => v !== cb.value); }
+            }
+        });
+        maxTableRows = 100; oldHtmlTabela = "";
+        updateDescTriggerText(); updateDashboard();
+    }
+
+    function updateDescTriggerText() {
+        const textSpan = document.getElementById('custom-desc-text');
+        if (selectedDescOptions.length === 0) textSpan.innerText = 'Tudo';
+        else if (selectedDescOptions.length === 1) textSpan.innerText = selectedDescOptions[0];
+        else textSpan.innerText = `${selectedDescOptions.length} Selecionados`;
+    }
 
     function solicitarDadosDoServidor() {
         fetch(WEB_APP_URL, { redirect: 'follow' })
@@ -330,14 +400,9 @@
                     }
                 } catch (e) {
                     document.getElementById('live-dot').classList.add('error');
-                    if (osData.length === 0) {
-                        document.getElementById('table-body').innerHTML = `<tr><td colspan="8" style="text-align:center; color:red; padding:40px;">Falha estrutural na API do Sheets.</td></tr>`;
-                    }
+                    console.error("Erro no processamento dos dados:", e);
                 }
-            })
-            .catch(erro => {
-                document.getElementById('live-dot').classList.add('error');
-            });
+            }).catch(erro => { document.getElementById('live-dot').classList.add('error'); });
     }
 
     function processarDadosPlanilha(dados) {
@@ -395,7 +460,7 @@
 
             let veiculo = String(h.veiculo || '-').trim().toUpperCase();
             let filial = String(h.filial || 'PE').trim().toUpperCase();
-            let equipNorm = String(h.equipamento || 'NÃO INFORMADO').trim().toUpperCase();
+            let equipNorm = String(h.equipment || h.equipamento || 'NÃO INFORMADO').trim().toUpperCase();
 
             processados.push({
                 os: numeroOS, data: dataFormatada, dataISO: dataISO, ano: ano, mes: mes, veiculo: veiculo,
@@ -414,7 +479,6 @@
         let currentFilial = document.getElementById('filter-filial').value;
         let currentVeiculo = document.getElementById('filter-veiculo').value;
         let currentEquip = document.getElementById('filter-equip').value;
-        let currentDesc = document.getElementById('filter-desc').value;
         let currentSit = document.getElementById('filter-situacao').value;
 
         const unique = (key) => [...new Set(osData.map(item => (item[key] || '').toString().trim()))].filter(Boolean).sort();
@@ -426,9 +490,21 @@
 
         fill('filter-ano', unique('ano'), currentAno); fill('filter-mes', listaMeses, currentMes); 
         fill('filter-filial', unique('filial'), currentFilial); fill('filter-veiculo', unique('veiculo'), currentVeiculo);
-        fill('filter-equip', unique('equipamento'), currentEquip); fill('filter-desc', unique('desc_filtro'), currentDesc);
-        fill('filter-situacao', unique('situacao'), currentSit);
+        fill('filter-equip', unique('equipamento'), currentEquip); fill('filter-situacao', unique('situacao'), currentSit);
         
+        const uniqueDesc = unique('desc_filtro');
+        const optionsDiv = document.getElementById('custom-desc-options');
+        optionsDiv.innerHTML = '';
+        uniqueDesc.forEach(v => {
+            const isChecked = selectedDescOptions.includes(v) ? 'checked' : '';
+            optionsDiv.innerHTML += `
+                <label style="display:flex; align-items:center; gap:8px; font-size:11px; font-weight:600; padding:4px 6px; cursor:pointer; border-radius:4px; color:var(--text-main);">
+                    <input type="checkbox" value="${v}" ${isChecked} onchange="handleDescChange(this)" style="accent-color:var(--primary); width:14px; height:14px; cursor:pointer;">
+                    <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px;" title="${v}">${v}</span>
+                </label>`;
+        });
+        updateDescTriggerText();
+
         let selectSit = document.getElementById('filter-situacao');
         if (currentSit === 'Tudo' && !window.firstLoadDone && osData.some(i => i.situacao === 'ABERTA')) {
              selectSit.value = 'ABERTA'; window.firstLoadDone = true;
@@ -442,7 +518,15 @@
         updateDashboard();
     }
 
-    function clickParetoItem(defectName) { maxTableRows = 100; oldHtmlTabela = ""; document.getElementById('filter-desc').value = document.getElementById('filter-desc').value === defectName ? 'Tudo' : defectName; updateDashboard(); }
+    function clickParetoItem(defectName) { 
+        maxTableRows = 100; oldHtmlTabela = ""; 
+        if (selectedDescOptions.includes(defectName)) { selectedDescOptions = selectedDescOptions.filter(v => v !== defectName); } 
+        else { selectedDescOptions.push(defectName); }
+        const checkboxes = document.querySelectorAll('#custom-desc-options input[type="checkbox"]');
+        checkboxes.forEach(cb => { cb.checked = selectedDescOptions.includes(cb.value); });
+        updateDescTriggerText(); updateDashboard(); 
+    }
+    
     function clickVehicleItem(vehicleNum) { maxTableRows = 100; oldHtmlTabela = ""; document.getElementById('filter-veiculo').value = document.getElementById('filter-veiculo').value === vehicleNum ? 'Tudo' : vehicleNum; updateDashboard(); }
 
     function setQuickFilter(mode, btn) {
@@ -451,161 +535,160 @@
         currentDaysLimit = mode === 'tudo' ? 'Tudo' : parseInt(mode); updateDashboard();
     }
     function toggleSort(col) { maxTableRows = 100; oldHtmlTabela = ""; currentSort.desc = currentSort.column === col ? !currentSort.desc : true; currentSort.column = col; updateDashboard(); }
-    
-    function carregarMaisLinhas() {
-        maxTableRows += 150; oldHtmlTabela = "";
-        updateDashboard();
-    }
+    function carregarMaisLinhas() { maxTableRows += 150; oldHtmlTabela = ""; updateDashboard(); }
 
     function updateDashboard() {
-        if (!osData.length) return;
-        const fAno = document.getElementById('filter-ano').value;
-        const fMes = document.getElementById('filter-mes').value;
-        const fFilial = document.getElementById('filter-filial').value;
-        const fVeiculo = document.getElementById('filter-veiculo').value;
-        const fEquip = document.getElementById('filter-equip').value;
-        const fDesc = document.getElementById('filter-desc').value;
-        const fSit = document.getElementById('filter-situacao').value;
+        try {
+            if (!osData.length) return;
+            const fAno = document.getElementById('filter-ano').value;
+            const fMes = document.getElementById('filter-mes').value;
+            const fFilial = document.getElementById('filter-filial').value;
+            const fVeiculo = document.getElementById('filter-veiculo').value;
+            const fEquip = document.getElementById('filter-equip').value;
+            const fSit = document.getElementById('filter-situacao').value;
 
-        // FILTRO CENTRALIZADO E SINCRONIZADO PARA TODOS OS COMPONENTES
-        let filtered = osData.filter(item => {
-            let matchDays = (currentDaysLimit === 'Tudo' || item.dias <= currentDaysLimit);
-            return matchDays && (fAno === 'Tudo' || item.ano === fAno) && (fMes === 'Tudo' || item.mes === fMes) &&
-                   (fFilial === 'Tudo' || item.filial === fFilial) && (fVeiculo === 'Tudo' || item.veiculo === fVeiculo) &&
-                   (fEquip === 'Tudo' || item.equipamento === fEquip) && (fDesc === 'Tudo' || item.desc_filtro === fDesc) &&
-                   (fSit === 'Tudo' || item.situacao === fSit.toUpperCase());
-        });
+            let filtered = osData.filter(item => {
+                let matchDays = (currentDaysLimit === 'Tudo' || item.dias <= currentDaysLimit);
+                let matchDesc = (selectedDescOptions.length === 0 || selectedDescOptions.includes(item.desc_filtro));
+                return matchDays && (fAno === 'Tudo' || item.ano === fAno) && (fMes === 'Tudo' || item.mes === fMes) &&
+                       (fFilial === 'Tudo' || item.filial === fFilial) && (fVeiculo === 'Tudo' || item.veiculo === fVeiculo) &&
+                       (fEquip === 'Tudo' || item.equipamento === fEquip) && matchDesc &&
+                       (fSit === 'Tudo' || item.situacao === fSit.toUpperCase());
+            });
 
-        filtered.sort((a, b) => currentSort.column === 'dias' ? (currentSort.desc ? b.dias - a.dias : a.dias - b.dias) : (currentSort.desc ? b.dataISO.localeCompare(a.dataISO) : a.dataISO.localeCompare(b.dataISO)));
-        currentFilteredData = filtered; 
+            filtered.sort((a, b) => currentSort.column === 'dias' ? (currentSort.desc ? b.dias - a.dias : a.dias - b.dias) : (currentSort.desc ? b.dataISO.localeCompare(a.dataISO) : a.dataISO.localeCompare(b.dataISO)));
+            currentFilteredData = filtered; 
 
-        let totalDiasTabela = 0, totalDiasResolucao = 0, qtdResolvidas = 0;
-        let veicDef = new Set(), pareto = {}, vehicleCounts = {};
-        let equipamentosUnicos = [...new Set(osData.map(i => i.equipamento))].sort();
-        let matrix = {};
+            let totalDiasTabela = 0, totalDiasResolucao = 0, qtdResolvidas = 0;
+            let veicDef = new Set();
+            let equipamentosUnicos = [...new Set(osData.map(i => i.equipamento))].sort();
+            let matrix = {};
 
-        // LOOP ÚNICO DE ALTA PERFORMANCE PARA ALIMENTAR TODOS OS CARDS
-        filtered.forEach(item => {
-            if (item.situacao === 'ABERTA') {
-                totalDiasTabela += item.dias;
-            } else if (item.situacao === 'FECHADA') {
-                totalDiasResolucao += item.dias;
-                qtdResolvidas++;
+            filtered.forEach(item => {
+                if (item.situacao === 'ABERTA') { totalDiasTabela += item.dias; } 
+                else if (item.situacao === 'FECHADA') { totalDiasResolucao += item.dias; qtdResolvidas++; }
+                
+                let textoDesc = item.desc_filtro.toUpperCase();
+                if (!textoDesc.includes('INSTALAÇÃO') && !textoDesc.includes('INSTALACAO') && item.veiculo && item.veiculo !== '-') {
+                    veicDef.add(item.veiculo); 
+                }
+                
+                let f = item.filial, eq = item.equipamento;
+                if (!matrix[f]) { matrix[f] = { rowTotal: 0 }; equipamentosUnicos.forEach(e => matrix[f][e] = 0); }
+                matrix[f][eq] = (matrix[f][eq] || 0) + 1; matrix[f].rowTotal++;
+            });
+
+            // TABELA
+            let htmlTabela = '';
+            let linhasVisiveis = filtered.slice(0, maxTableRows);
+            linhasVisiveis.forEach((item, index) => {
+                let sitColor = item.situacao === 'FECHADA' ? 'var(--green)' : 'var(--red)';
+                let rowClass = 'fade-in';
+                if (item.dias >= 60 && item.situacao === 'ABERTA') rowClass += ' sla-critical';
+                else if (item.dias >= 45 && item.situacao === 'ABERTA') rowClass += ' sla-warning';
+                let delay = (index % maxTableRows) * 0.002; 
+                htmlTabela += `<tr class="${rowClass}" style="animation-delay: ${delay}s">
+                    <td><b>${item.os}</b></td><td>${item.data}</td><td>${item.veiculo}</td><td>${item.filial}</td><td>${item.equipamento}</td><td>${item.defeito}</td><td><b>${item.dias}</b></td><td><b style="color:${sitColor}">${item.situacao}</b></td>
+                </tr>`;
+            });
+            if (filtered.length > maxTableRows) {
+                let ocultos = filtered.length - maxTableRows;
+                htmlTabela += `<tr><td colspan="8" style="text-align:center; padding:12px; background:transparent;">
+                    <button onclick="carregarMaisLinhas()" style="background:var(--primary); color:#fff; border:none; padding:6px 20px; border-radius:20px; font-weight:700; cursor:pointer; box-shadow:0 4px 10px rgba(15,117,97,0.25);">
+                        Carregar Mais O.S. (${ocultos} ocultas)
+                    </button>
+                </td></tr>`;
             }
-            
-            veicDef.add(item.veiculo); 
-            pareto[item.desc_filtro] = (pareto[item.desc_filtro] || 0) + 1;
-            if (item.veiculo && item.veiculo !== '-') vehicleCounts[item.veiculo] = (vehicleCounts[item.veiculo] || 0) + 1;
-            
-            let f = item.filial, eq = item.equipamento;
-            if (!matrix[f]) { matrix[f] = { rowTotal: 0 }; equipamentosUnicos.forEach(e => matrix[f][e] = 0); }
-            matrix[f][eq] = (matrix[f][eq] || 0) + 1; matrix[f].rowTotal++;
-        });
+            let finalHtmlTabela = htmlTabela || `<tr><td colspan="8">${msgTudoBem}</td></tr>`;
+            if (finalHtmlTabela !== oldHtmlTabela) { document.getElementById('table-body').innerHTML = finalHtmlTabela; oldHtmlTabela = finalHtmlTabela; }
+            animateValue('table-total-dias', totalDiasTabela);
 
-        // ==========================================
-        // RENDERIZAÇÃO DA TABELA (COM MENSAGEM "TUDO BEM")
-        // ==========================================
-        let htmlTabela = '';
-        let linhasVisiveis = filtered.slice(0, maxTableRows);
-        
-        linhasVisiveis.forEach((item, index) => {
-            let sitColor = item.situacao === 'FECHADA' ? 'var(--green)' : 'var(--red)';
-            let rowClass = 'fade-in';
-            if (item.dias >= 60 && item.situacao === 'ABERTA') rowClass += ' sla-critical';
-            else if (item.dias >= 45 && item.situacao === 'ABERTA') rowClass += ' sla-warning';
-            
-            let delay = (index % maxTableRows) * 0.002; 
-            
-            htmlTabela += `<tr class="${rowClass}" style="animation-delay: ${delay}s">
-                <td><b>${item.os}</b></td><td>${item.data}</td><td>${item.veiculo}</td><td>${item.filial}</td><td>${item.equipamento}</td><td>${item.defeito}</td><td><b>${item.dias}</b></td><td><b style="color:${sitColor}">${item.situacao}</b></td>
-            </tr>`;
-        });
-        
-        if (filtered.length > maxTableRows) {
-            let ocultos = filtered.length - maxTableRows;
-            htmlTabela += `<tr><td colspan="8" style="text-align:center; padding:12px; background:transparent;">
-                <button onclick="carregarMaisLinhas()" style="background:var(--primary); color:#fff; border:none; padding:6px 20px; border-radius:20px; font-weight:700; cursor:pointer; box-shadow:0 4px 10px rgba(15,117,97,0.25); transition:transform 0.2s;">
-                    Carregar Mais O.S. (${ocultos} ocultas)
-                </button>
-            </td></tr>`;
-        }
-        
-        let finalHtmlTabela = htmlTabela || `<tr><td colspan="8">${msgTudoBem}</td></tr>`;
-        if (finalHtmlTabela !== oldHtmlTabela) {
-            document.getElementById('table-body').innerHTML = finalHtmlTabela;
-            oldHtmlTabela = finalHtmlTabela;
-        }
-        
-        animateValue('table-total-dias', totalDiasTabela);
+            // PARETOS INTELIGENTES (Ignoram seus próprios filtros para cruzar dados)
+            let pareto = {};
+            let vehicleCounts = {};
+            osData.forEach(item => {
+                let matchDays = (currentDaysLimit === 'Tudo' || item.dias <= currentDaysLimit);
+                let matchAno = (fAno === 'Tudo' || item.ano === fAno);
+                let matchMes = (fMes === 'Tudo' || item.mes === fMes);
+                let matchFilial = (fFilial === 'Tudo' || item.filial === fFilial);
+                let matchVeiculo = (fVeiculo === 'Tudo' || item.veiculo === fVeiculo);
+                let matchEquip = (fEquip === 'Tudo' || item.equipamento === fEquip);
+                let matchSit = (fSit === 'Tudo' || item.situacao === fSit.toUpperCase());
+                let matchDesc = (selectedDescOptions.length === 0 || selectedDescOptions.includes(item.desc_filtro));
 
-        // ==========================================
-        // PARETOS (COM MENSAGEM "TUDO BEM")
-        // ==========================================
-        const generateParetoList = (dataObj, maxVal, activeVal, clickFunc, prefix="") => {
-            let html = '';
-            Object.keys(dataObj).map(k=>({n:k,c:dataObj[k]})).sort((a,b)=>b.c-a.c).slice(0,10).forEach(p => {
-                let w = Math.max(5, (p.c / maxVal) * 100);
-                let isAct = activeVal.toUpperCase() === p.n.toUpperCase() ? 'active-pareto' : '';
-                html += `<div class="pareto-item ${isAct}" onclick="${clickFunc}('${p.n}')">
-                            <div class="pareto-bg" style="width: ${w}%"></div>
-                            <div class="pareto-content"><span class="pareto-name" title="${p.n}">${prefix}${p.n}</span><span class="pareto-count">${p.c}x</span></div>
-                         </div>`;
+                if (matchDays && matchAno && matchMes && matchFilial && matchVeiculo && matchEquip && matchSit) {
+                    pareto[item.desc_filtro] = (pareto[item.desc_filtro] || 0) + 1;
+                }
+                if (matchDays && matchAno && matchMes && matchFilial && matchEquip && matchDesc && matchSit) {
+                    if (item.veiculo && item.veiculo !== '-') {
+                        vehicleCounts[item.veiculo] = (vehicleCounts[item.veiculo] || 0) + 1;
+                    }
+                }
             });
-            return html;
-        };
 
-        let maxPareto = Math.max(...Object.values(pareto), 1);
-        document.getElementById('pareto-container').innerHTML = generateParetoList(pareto, maxPareto, fDesc, 'clickParetoItem') || msgTudoBem;
+            const generateParetoList = (dataObj, maxVal, activeVal, clickFunc, prefix="") => {
+                if (Object.keys(dataObj).length === 0) return "";
+                let html = '';
+                Object.keys(dataObj).map(k=>({n:k,c:dataObj[k]})).sort((a,b)=>b.c-a.c).slice(0,10).forEach(p => {
+                    let w = Math.max(5, (p.c / maxVal) * 100);
+                    let isAct = Array.isArray(activeVal) ? (activeVal.includes(p.n) ? 'active-pareto' : '') : (activeVal && activeVal.toUpperCase() === p.n.toUpperCase() ? 'active-pareto' : '');
+                    html += `<div class="pareto-item ${isAct}" onclick="${clickFunc}('${p.n.replace(/'/g, "\\'")}')">
+                                <div class="pareto-bg" style="width: ${w}%"></div>
+                                <div class="pareto-content"><span class="pareto-name" title="${p.n}">${prefix}${p.n}</span><span class="pareto-count">${p.c}x</span></div>
+                             </div>`;
+                });
+                return html;
+            };
 
-        let maxVeic = Math.max(...Object.values(vehicleCounts), 1);
-        document.getElementById('vehicle-container').innerHTML = generateParetoList(vehicleCounts, maxVeic, fVeiculo, 'clickVehicleItem', '🚘 ') || msgTudoBem;
+            let maxPareto = Math.max(...Object.values(pareto), 1);
+            document.getElementById('pareto-container').innerHTML = generateParetoList(pareto, maxPareto, selectedDescOptions, 'clickParetoItem') || msgTudoBem;
 
-        // ==========================================
-        // MATRIZ CRUZADA (COM MENSAGEM "TUDO BEM")
-        // ==========================================
-        document.querySelector('#matrix-table thead').innerHTML = `<tr><th>Filial</th>${equipamentosUnicos.map(e => `<th>${e}</th>`).join('')}<th>Total</th></tr>`;
-        let mHTML = '', colTotals = {}, grandTotal = 0;
-        equipamentosUnicos.forEach(e => colTotals[e] = 0);
+            let maxVeic = Math.max(...Object.values(vehicleCounts), 1);
+            document.getElementById('vehicle-container').innerHTML = generateParetoList(vehicleCounts, maxVeic, fVeiculo, 'clickVehicleItem', '🚘 ') || msgTudoBem;
 
-        Object.keys(matrix).sort().forEach(b => {
-            let d = matrix[b]; let isRowActive = fFilial === b ? 'active-filter-row' : '';
-            mHTML += `<tr class="${isRowActive}"><td class="matrix-branch-click" onclick="clickMatrixCell('${b}', null)">${b}</td>`;
-            equipamentosUnicos.forEach(eq => {
-                let v = d[eq] || 0; colTotals[eq] += v;
-                let isCellActive = (fFilial === b && fEquip === eq) ? 'active-filter-cell' : '';
-                mHTML += `<td class="clickable-cell ${isCellActive}" onclick="clickMatrixCell('${b}', '${eq}')">${v || ""}</td>`;
+            // MATRIZ CRUZADA
+            document.querySelector('#matrix-table thead').innerHTML = `<tr><th>Filial</th>${equipamentosUnicos.map(e => `<th>${e}</th>`).join('')}<th>Total</th></tr>`;
+            let mHTML = '', colTotals = {}, grandTotal = 0;
+            equipamentosUnicos.forEach(e => colTotals[e] = 0);
+
+            Object.keys(matrix).sort().forEach(b => {
+                let d = matrix[b]; let isRowActive = fFilial === b ? 'active-filter-row' : '';
+                mHTML += `<tr class="${isRowActive}"><td class="matrix-branch-click" onclick="clickMatrixCell('${b}', null)">${b}</td>`;
+                equipamentosUnicos.forEach(eq => {
+                    let v = d[eq] || 0; colTotals[eq] += v;
+                    let isCellActive = (fFilial === b && fEquip === eq) ? 'active-filter-cell' : '';
+                    mHTML += `<td class="clickable-cell ${isCellActive}" onclick="clickMatrixCell('${b}', '${eq}')">${v || ""}</td>`;
+                });
+                mHTML += `<td><b>${d.rowTotal}</b></td></tr>`; grandTotal += d.rowTotal;
             });
-            mHTML += `<td><b>${d.rowTotal}</b></td></tr>`; grandTotal += d.rowTotal;
-        });
-        
-        if (mHTML === '') {
-            mHTML = `<tr><td colspan="${equipamentosUnicos.length + 2}">${msgTudoBem}</td></tr>`;
+            if (mHTML === '') { mHTML = `<tr><td colspan="${equipamentosUnicos.length + 2}">${msgTudoBem}</td></tr>`; }
+            document.getElementById('matrix-table-body').innerHTML = mHTML;
+            document.querySelector('#matrix-table tfoot').innerHTML = `<tr><td>Total</td>${equipamentosUnicos.map(eq => `<td><b>${colTotals[eq]}</b></td>`).join('')}<td><b>${grandTotal}</b></td></tr>`;
+
+            updateChart(equipamentosUnicos, colTotals);
+
+            // KPIs
+            let abertasExatas = filtered.filter(i => i.situacao === 'ABERTA').length;
+            let fechadasExatas = filtered.filter(i => i.situacao === 'FECHADA').length;
+            let tot = abertasExatas + fechadasExatas;
+            let eff = tot > 0 ? Math.round((fechadasExatas/tot)*100) : 100;
+
+            animateValue('kpi-abertas', abertasExatas); animateValue('kpi-defeito', veicDef.size);
+            animateValue('kpi-total-os', tot); animateValue('kpi-fechadas', fechadasExatas);
+            animateValue('kpi-eficiencia', eff, true);
+            animateValue('kpi-media-dias', qtdResolvidas > 0 ? Math.round(totalDiasResolucao / qtdResolvidas) : 0);
+            
+            updateGauge(eff);
+            
+        } catch (erro) {
+            console.error("Erro interno na renderização:", erro);
+            document.getElementById('live-dot').classList.add('error');
         }
-        
-        document.getElementById('matrix-table-body').innerHTML = mHTML;
-        document.querySelector('#matrix-table tfoot').innerHTML = `<tr><td>Total</td>${equipamentosUnicos.map(eq => `<td><b>${colTotals[eq]}</b></td>`).join('')}<td><b>${grandTotal}</b></td></tr>`;
-
-        updateChart(equipamentosUnicos, colTotals);
-
-        // Atualização Segura de KPIs
-        let abertasExatas = filtered.filter(i => i.situacao === 'ABERTA').length;
-        let fechadasExatas = filtered.filter(i => i.situacao === 'FECHADA').length;
-        let tot = abertasExatas + fechadasExatas;
-        let eff = tot > 0 ? Math.round((fechadasExatas/tot)*100) : 100;
-
-        animateValue('kpi-abertas', abertasExatas); animateValue('kpi-defeito', veicDef.size);
-        animateValue('kpi-total-os', tot); animateValue('kpi-fechadas', fechadasExatas);
-        animateValue('kpi-eficiencia', eff, true);
-        animateValue('kpi-media-dias', qtdResolvidas > 0 ? Math.round(totalDiasResolucao / qtdResolvidas) : 0);
-        
-        updateGauge(eff);
     }
 
     function updateGauge(percent) {
-        if(gaugeInstance) {
-            gaugeInstance.data.datasets[0].data = [percent, 100 - percent];
-            gaugeInstance.update();
-        } else {
+        if(gaugeInstance) { gaugeInstance.data.datasets[0].data = [percent, 100 - percent]; gaugeInstance.update(); } 
+        else {
             const ctx = document.getElementById('gaugeChart').getContext('2d');
             gaugeInstance = new Chart(ctx, {
                 type: 'doughnut',
@@ -618,10 +701,8 @@
     function updateChart(labelsArray, dataTotals) {
         let vals = labelsArray.map(l => dataTotals[l]);
         const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-        
         if (chartInstance) { 
-            chartInstance.data.labels = labelsArray; 
-            chartInstance.data.datasets[0].data = vals; 
+            chartInstance.data.labels = labelsArray; chartInstance.data.datasets[0].data = vals; 
             chartInstance.options.scales.y.grid.color = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
             chartInstance.options.scales.y.ticks.color = isDark ? '#a0aec0' : '#718096';
             chartInstance.options.scales.x.ticks.color = isDark ? '#a0aec0' : '#718096';
@@ -631,8 +712,7 @@
                 type: 'bar',
                 data: { labels: labelsArray, datasets: [{ data: vals, backgroundColor: '#0f7561', borderRadius: 6, barPercentage: 0.5 }] },
                 options: { 
-                    responsive: true, maintainAspectRatio: false, 
-                    plugins: { legend: { display: false } },
+                    responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
                     scales: { 
                         y: { beginAtZero: true, grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }, ticks: { color: isDark ? '#a0aec0' : '#718096', font: { size: 9 } } }, 
                         x: { grid: { display: false }, ticks: { color: isDark ? '#a0aec0' : '#718096', font: { size: 9 } } } 
@@ -659,17 +739,10 @@
             let desc = item.defeito ? item.defeito.replace(/;/g, ',').replace(/\n/g, ' ') : '';
             csvContent += `${item.os};${item.data};${item.veiculo};${item.filial};${item.equipamento};"${desc}";${item.dias};${item.situacao}\n`;
         });
-        
         let hoje = new Date();
-        let dia = String(hoje.getDate()).padStart(2, '0');
-        let mes = String(hoje.getMonth() + 1).padStart(2, '0');
-        let ano = hoje.getFullYear();
-        let dataHoje = `${dia}_${mes}_${ano}`;
-
+        let dataHoje = `${String(hoje.getDate()).padStart(2, '0')}_${String(hoje.getMonth() + 1).padStart(2, '0')}_${hoje.getFullYear()}`;
         let blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' });
-        let link = document.createElement("a"); 
-        link.href = URL.createObjectURL(blob); 
-        link.download = `Relatório_OS_${dataHoje}.csv`;
+        let link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `Relatório_OS_${dataHoje}.csv`;
         document.body.appendChild(link); link.click(); document.body.removeChild(link);
     }
 
@@ -681,7 +754,7 @@
         ];
         let html = '';
         estruturaColunas.forEach(col => {
-            html += `<label style="display:flex; align-items:center; gap:10px; font-size:12px; font-weight:600; cursor:pointer; padding: 4px 0;">
+            html += `<label style="display:flex; align-items:center; gap:10px; font-size:12px; font-weight:600; cursor:pointer; padding: 4px 0; color:var(--text-main);">
                 <input type="checkbox" value="${col.id}" checked data-label="${col.label}" style="width:16px; height:16px; accent-color:var(--primary); cursor:pointer;">
                 ${col.label}
             </label>`;
