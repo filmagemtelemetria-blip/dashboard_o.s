@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard O.S - Segsat</title>
     
-    <!-- Fontes, Ícones e Motores de Gráficos e PDF -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,600,1,0" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -13,30 +12,32 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.29/jspdf.plugin.autotable.min.js"></script>
     
     <style>
-        /* Variáveis Dinâmicas para Modo Claro e Escuro */
         :root {
             --primary: #0f7561; --primary-hover: #0c5c4c;
             --bg-color: #f4f7f6; --surface: #ffffff;
             --text-main: #2d3748; --text-muted: #718096;
-            --border: #e2e8f0; --shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
-            --red: #e53e3e; --red-bg: rgba(229, 62, 62, 0.1);
-            --yellow: #ecc94b; --yellow-bg: rgba(236, 201, 75, 0.15);
-            --green: #38a169; --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --border: #e2e8f0; --shadow: 0 10px 25px rgba(0, 0, 0, 0.03), 0 4px 12px rgba(0,0,0,0.02);
+            --red: #e53e3e; --red-bg: rgba(229, 62, 62, 0.08);
+            --yellow: #ecc94b; --yellow-bg: rgba(236, 201, 75, 0.12);
+            --green: #38a169; --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         [data-theme="dark"] {
             --primary: #20c997; --primary-hover: #12b886;
             --bg-color: #121212; --surface: #1e1e1e;
             --text-main: #e2e8f0; --text-muted: #a0aec0;
-            --border: #2d3748; --shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
-            --red: #fc8181; --red-bg: rgba(252, 129, 129, 0.15);
-            --yellow: #f6e05e; --yellow-bg: rgba(246, 224, 94, 0.15);
+            --border: #2d3748; --shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+            --red: #fc8181; --red-bg: rgba(252, 129, 129, 0.12);
+            --yellow: #f6e05e; --yellow-bg: rgba(246, 224, 94, 0.12);
         }
 
         * { box-sizing: border-box; font-family: 'Inter', sans-serif; margin: 0; padding: 0; }
         body { background: var(--bg-color); color: var(--text-main); padding: 12px; height: 100vh; display: flex; overflow: hidden; transition: var(--transition); }
-        .container { width: 100%; display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; }
+        .container { width: 100%; display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; position: relative; }
         
+        #sync-progress-bar { position: absolute; top: -12px; left: -12px; width: calc(100% + 24px); height: 4px; background: rgba(15, 117, 97, 0.15); z-index: 9999; }
+        #sync-progress-fill { height: 100%; width: 0%; background: var(--green); transition: width 1s linear; }
+
         header { background: var(--primary); color: #fff; padding: 12px 20px; border-radius: 12px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; box-shadow: var(--shadow); transition: var(--transition); }
         header h1 { font-size: 18px; font-weight: 800; text-align: center; flex: 1; letter-spacing: 0.5px; }
         .logo-box { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; }
@@ -61,46 +62,65 @@
 
         .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
         .f-card { background: var(--bg-color); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; transition: var(--transition); }
+        .f-card:focus-within { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(15, 117, 97, 0.15); }
         .f-card label { background: var(--primary); color: #fff; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 4px; padding: 8px 10px; flex-shrink: 0; border-radius: 7px 0 0 7px; transition: var(--transition); }
         
-        /* Classes dos Filtros Multi-seleção Customizados */
         .custom-trigger { width: 100%; padding: 6px 10px; font-size: 11px; font-weight: 700; color: var(--text-main); cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: transparent; }
         .custom-trigger-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; }
-        .custom-menu { display: none; position: absolute; top: 100%; left: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); z-index: 1000; max-height: 280px; padding: 8px; flex-direction: column; gap: 6px; min-width: 190px; width: max-content; }
+        .custom-menu { display: none; position: absolute; top: 100%; left: 0; background: var(--surface); border: 1px solid var(--primary); border-radius: 8px; box-shadow: 0 12px 30px rgba(0,0,0,0.15); z-index: 1000; max-height: 280px; padding: 8px; flex-direction: column; gap: 6px; min-width: 190px; width: max-content; }
+        [data-theme="dark"] .custom-menu { box-shadow: 0 12px 30px rgba(0,0,0,0.5); }
         .custom-search { width: 100%; padding: 6px 8px; font-size: 11px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-color); color: var(--text-main); outline: none; }
         .custom-actions { display: flex; gap: 10px; padding: 2px 0; border-bottom: 1px solid var(--border); margin-bottom: 2px; }
         .btn-mark { background: none; border: none; color: var(--primary); font-size: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
         .btn-clear { background: none; border: none; color: var(--red); font-size: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
         .custom-options { overflow-y: auto; max-height: 170px; display: flex; flex-direction: column; gap: 2px; }
-        .custom-option-lbl { display:flex; align-items:center; gap:8px; font-size:11px; font-weight:600; padding:4px 6px; cursor:pointer; border-radius:4px; color:var(--text-main); transition: background 0.2s;}
-        .custom-option-lbl:hover { background: var(--bg-color); }
+        .custom-option-lbl { display:flex; align-items:center; gap:8px; font-size:11px; font-weight:600; padding:5px 8px; cursor:pointer; border-radius:6px; color:var(--text-main); transition: var(--transition); }
+        .custom-option-lbl:hover { background: rgba(15, 117, 97, 0.08); color: var(--primary); }
 
         .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
         .k-card { background: var(--surface); border-radius: 12px; box-shadow: var(--shadow); padding: 12px; display: flex; flex-direction: column; justify-content: center; position: relative; transition: var(--transition); overflow: hidden; }
         .k-card:hover { transform: translateY(-3px); }
         .k-header { color: var(--text-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
-        .k-header span { font-size: 16px; color: var(--primary); }
+        .k-header span.icon { font-size: 16px; color: var(--primary); }
         .k-value { font-size: 24px; font-weight: 800; color: var(--text-main); }
         .k-value.danger { color: var(--red); }
-        .gauge-container { position: absolute; right: -10px; bottom: -20px; width: 80px; height: 80px; opacity: 0.9; }
+        
+        .gauge-wrapper-centered { position: relative; width: 100px; height: 50px; margin: 4px auto 0 auto; display: flex; justify-content: center; align-items: flex-end; }
+        .gauge-canvas-embed { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
+        .gauge-value-embed { position: absolute; bottom: 0; left: 0; width: 100%; text-align: center; font-size: 15px; font-weight: 800; z-index: 5; line-height: 1; margin-bottom: 2px; }
+
+        .tooltip { position: relative; display: inline-flex; align-items: center; cursor: help; margin-left: 4px; color: var(--text-muted); }
+        .tooltip .tooltip-text { visibility: hidden; width: 180px; background-color: var(--text-main); color: var(--surface); text-align: center; border-radius: 6px; padding: 6px 8px; position: absolute; z-index: 10; bottom: 125%; left: 50%; transform: translateX(-50%); font-size: 9px; font-weight: 600; text-transform: none; box-shadow: 0 4px 6px rgba(0,0,0,0.2); opacity: 0; transition: opacity 0.2s; pointer-events: none; line-height: 1.3; }
+        .tooltip:hover .tooltip-text { visibility: visible; opacity: 1; }
+        .tooltip .tooltip-text::after { content: ""; position: absolute; top: 100%; left: 50%; margin-left: -5px; border-width: 5px; border-style: solid; border-color: var(--text-main) transparent transparent transparent; }
 
         .grid { display: grid; grid-template-columns: 1fr; gap: 12px; flex: 1; min-height: 0; }
         @media (min-width: 1024px) { .grid { grid-template-columns: 1.2fr 0.8fr; } }
-        .box { background: var(--surface); border-radius: 12px; box-shadow: var(--shadow); display: flex; flex-direction: column; min-height: 0; overflow: hidden; transition: var(--transition); }
-        .b-header { padding: 12px 15px; font-size: 12px; font-weight: 700; color: var(--text-main); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; text-transform: uppercase; background: rgba(0,0,0,0.02); }
+        .box { background: var(--surface); border-radius: 12px; box-shadow: var(--shadow); display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; transition: var(--transition); }
         
+        .b-header { padding: 12px 15px; font-size: 12px; font-weight: 700; color: var(--text-main); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 8px; text-transform: uppercase; background: rgba(0,0,0,0.02); }
+        .b-header-title { display: flex; align-items: center; gap: 8px; }
+        .sortable-list-btn { font-size: 16px; color: var(--text-muted); cursor: pointer; border-radius: 4px; padding: 2px; transition: var(--transition); }
+        .sortable-list-btn:hover { background: rgba(0,0,0,0.05); color: var(--primary); }
+
         .scroll { flex: 1; overflow-y: auto; overflow-x: auto; position: relative; will-change: scroll-position; }
         
         table { width: 100%; border-collapse: collapse; font-size: 11px; }
         th { background: var(--surface); color: var(--text-muted); padding: 10px; position: sticky; top: 0; z-index: 3; text-transform: uppercase; font-size: 10px; font-weight: 800; border-bottom: 2px solid var(--border); white-space: nowrap; cursor: pointer; transition: var(--transition); }
         th:hover { color: var(--primary); }
         td { padding: 8px 10px; border-bottom: 1px solid var(--border); color: var(--text-main); transition: var(--transition); }
-        tbody tr:hover { background-color: rgba(15, 117, 97, 0.05); }
+        tbody tr:hover { background-color: rgba(15, 117, 97, 0.04); }
         tr.sla-critical { background-color: var(--red-bg) !important; }
         tr.sla-warning { background-color: var(--yellow-bg) !important; }
-        tfoot td { position: sticky; bottom: 0; background: var(--surface); font-weight: 800; z-index: 2; border-top: 2px solid var(--border); box-shadow: 0 -2px 10px rgba(0,0,0,0.05); }
+        tfoot td { position: sticky; bottom: 0; background: var(--surface); font-weight: 800; z-index: 2; border-top: 2px solid var(--border); box-shadow: 0 -2px 10px rgba(0,0,0,0.03); }
         
-        .right-column { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+        .pill-badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-weight: 700; font-size: 9px; text-align: center; text-transform: uppercase; letter-spacing: 0.3px; }
+        .pill-aberta { background: var(--red-bg); color: #e53e3e; }
+        .pill-fechada { background: rgba(56, 161, 105, 0.12); color: #2f855a; }
+        [data-theme="dark"] .pill-aberta { color: #fc8181; }
+        [data-theme="dark"] .pill-fechada { color: #48bb78; background: rgba(56, 161, 105, 0.18); }
+
+        .right-column { display: flex; flex-direction: column; gap: 12px; min-height: 0; height: 100%; }
         .sub-split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; flex: 1; min-height: 0; }
         @media (min-width: 1400px) { .sub-split { grid-template-columns: 1fr 1fr 1.2fr; } }
         
@@ -114,11 +134,11 @@
         .pareto-item { position: relative; display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; background: var(--bg-color); border-radius: 6px; cursor: pointer; transition: var(--transition); overflow: hidden; border: 1px solid transparent; }
         .pareto-item:hover { border-color: var(--primary); transform: translateX(3px); }
         .pareto-item.active-pareto { border-color: var(--yellow); }
-        .pareto-bg { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(15, 117, 97, 0.15); z-index: 1; border-radius: 0 4px 4px 0; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
-        [data-theme="dark"] .pareto-bg { background: rgba(32, 201, 151, 0.2); }
+        .pareto-bg { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(15, 117, 97, 0.12); z-index: 1; border-radius: 0 4px 4px 0; transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
+        [data-theme="dark"] .pareto-bg { background: rgba(32, 201, 151, 0.15); }
         .pareto-content { position: relative; z-index: 2; display: flex; justify-content: space-between; width: 100%; pointer-events: none; align-items: center; }
         .pareto-name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 140px; font-size: 11px; }
-        .pareto-count { background: var(--surface); color: var(--primary); border: 1px solid var(--primary); padding: 2px 6px; border-radius: 12px; font-size: 10px; font-weight: 800; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .pareto-count { background: var(--surface); color: var(--primary); border: 1px solid var(--primary); padding: 2px 6px; border-radius: 12px; font-size: 10px; font-weight: 800; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
 
         .chart-container { flex: 1; padding: 10px; position: relative; width: 100%; height: 100%; }
         
@@ -127,18 +147,21 @@
 
         .fade-in { animation: fadeInRow 0.3s ease-out forwards; opacity: 0; }
         @keyframes fadeInRow { to { opacity: 1; transform: translateY(0); } from { opacity: 0; transform: translateY(5px); } }
+        
+        .all-good-msg { text-align: center; padding: 32px 16px; background: rgba(15, 117, 97, 0.03); border: 1px dashed rgba(15, 117, 97, 0.2); border-radius: 12px; color: var(--primary); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; font-weight: 700; font-size: 12px; margin: 12px; animation: scaleInGood 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+        .all-good-msg span { font-size: 36px; margin-bottom: 2px; color: var(--primary); }
+        @keyframes scaleInGood { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
 
         .scroll::-webkit-scrollbar { width: 6px; height: 6px; }
         .scroll::-webkit-scrollbar-track { background: var(--bg-color); border-radius: 4px; }
         .scroll::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 4px; opacity: 0.5; }
-        
-        .all-good-msg { text-align: center; padding: 30px 10px; color: var(--primary); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; font-weight: 700; font-size: 13px; opacity: 0.9; }
-        .all-good-msg span { font-size: 32px; margin-bottom: 4px; }
     </style>
 </head>
 <body>
 
 <div class="container">
+    <div id="sync-progress-bar"><div id="sync-progress-fill"></div></div>
+
     <header>
         <div class="logo-box"><span class="material-symbols-rounded">directions_bus</span> PARVI TRANSPORTES</div>
         <h1>CENTRAL DE O.S</h1>
@@ -158,17 +181,21 @@
                 <button class="btn-quick" onclick="setQuickFilter('15', this)">Últimos 15 Dias</button>
                 <button class="btn-quick" onclick="setQuickFilter('30', this)">Últimos 30 Dias</button>
                 
-                <button class="btn-export" style="margin-left: auto;" onclick="exportarCSV()">
+                <div style="flex:1;"></div>
+                
+                <button class="btn-quick" style="border-color: var(--text-muted); color: var(--text-muted); display:flex; align-items:center; gap:4px;" onclick="masterReset()" title="Limpar todos os filtros">
+                    <span class="material-symbols-rounded" style="font-size: 14px;">cleaning_services</span> Limpar Filtros
+                </button>
+
+                <button class="btn-export" onclick="exportarCSV()">
                     <span class="material-symbols-rounded" style="font-size: 16px;">download</span> Exportar CSV
                 </button>
-                
-                <button class="btn-export" style="margin-left: 0; background: var(--red); box-shadow: 0 4px 10px rgba(229, 62, 62, 0.3);" onclick="abrirModalPDF()">
+                <button class="btn-export" style="background: var(--red); box-shadow: 0 4px 10px rgba(229, 62, 62, 0.3);" onclick="abrirModalPDF()">
                     <span class="material-symbols-rounded" style="font-size: 16px;">picture_as_pdf</span> Exportar PDF
                 </button>
             </div>
             
             <div class="filters">
-                <!-- Filtro: ANO -->
                 <div class="f-card" style="position: relative;" id="dropdown-ano-container">
                     <label><span class="material-symbols-rounded">calendar_month</span> Ano</label>
                     <div id="custom-ano-trigger" onclick="toggleCustomDropdown(event, 'ano')" class="custom-trigger">
@@ -185,7 +212,6 @@
                     </div>
                 </div>
 
-                <!-- Filtro: MÊS -->
                 <div class="f-card" style="position: relative;" id="dropdown-mes-container">
                     <label><span class="material-symbols-rounded">event</span> Mês</label>
                     <div id="custom-mes-trigger" onclick="toggleCustomDropdown(event, 'mes')" class="custom-trigger">
@@ -202,7 +228,6 @@
                     </div>
                 </div>
 
-                <!-- Filtro: FILIAL -->
                 <div class="f-card" style="position: relative;" id="dropdown-filial-container">
                     <label><span class="material-symbols-rounded">store</span> Filial</label>
                     <div id="custom-filial-trigger" onclick="toggleCustomDropdown(event, 'filial')" class="custom-trigger">
@@ -219,7 +244,6 @@
                     </div>
                 </div>
 
-                <!-- Filtro: VEÍCULO -->
                 <div class="f-card" style="position: relative;" id="dropdown-veiculo-container">
                     <label><span class="material-symbols-rounded">directions_car</span> Veíc.</label>
                     <div id="custom-veiculo-trigger" onclick="toggleCustomDropdown(event, 'veiculo')" class="custom-trigger">
@@ -227,7 +251,7 @@
                         <span class="material-symbols-rounded" style="font-size: 16px;">expand_more</span>
                     </div>
                     <div id="custom-veiculo-menu" class="custom-menu">
-                        <input type="text" id="custom-veiculo-search" placeholder="Pesquisar veículo..." oninput="filterCustomOptions('veiculo')" class="custom-search">
+                        <input type="text" id="custom-veiculo-search" placeholder="Pesquisar..." oninput="filterCustomOptions('veiculo')" class="custom-search">
                         <div class="custom-actions">
                             <button type="button" onclick="selectAllCustom('veiculo', true)" class="btn-mark">Marcar Todos</button>
                             <button type="button" onclick="selectAllCustom('veiculo', false)" class="btn-clear">Limpar</button>
@@ -236,7 +260,6 @@
                     </div>
                 </div>
 
-                <!-- Filtro: EQUIPAMENTO -->
                 <div class="f-card" style="position: relative;" id="dropdown-equip-container">
                     <label><span class="material-symbols-rounded">videocam</span> Equip.</label>
                     <div id="custom-equip-trigger" onclick="toggleCustomDropdown(event, 'equip')" class="custom-trigger">
@@ -253,7 +276,6 @@
                     </div>
                 </div>
                 
-                <!-- Filtro: DEFEITO -->
                 <div class="f-card" style="position: relative;" id="dropdown-desc-container">
                     <label><span class="material-symbols-rounded">build</span> Defeito</label>
                     <div id="custom-desc-trigger" onclick="toggleCustomDropdown(event, 'desc')" class="custom-trigger">
@@ -270,7 +292,6 @@
                     </div>
                 </div>
 
-                <!-- Filtro: STATUS -->
                 <div class="f-card" style="position: relative;" id="dropdown-situacao-container">
                     <label><span class="material-symbols-rounded">rule</span> Status</label>
                     <div id="custom-situacao-trigger" onclick="toggleCustomDropdown(event, 'situacao')" class="custom-trigger">
@@ -290,38 +311,54 @@
         </div>
 
         <div class="kpis">
-            <div class="k-card"><div class="k-header"><span class="material-symbols-rounded">inventory_2</span> Total O.S.</div><div class="k-value" id="kpi-total-os">0</div></div>
-            <div class="k-card"><div class="k-header"><span class="material-symbols-rounded" style="color:var(--green)">check_circle</span> Fechadas</div><div class="k-value" id="kpi-fechadas">0</div></div>
-            <div class="k-card"><div class="k-header"><span class="material-symbols-rounded" style="color:var(--red)">warning</span> Abertas</div><div class="k-value danger" id="kpi-abertas">0</div></div>
-            <div class="k-card"><div class="k-header"><span class="material-symbols-rounded">car_crash</span> Frota Afetada</div><div class="k-value" id="kpi-defeito">0</div></div>
+            <div class="k-card"><div class="k-header"><span class="material-symbols-rounded icon">inventory_2</span> Total O.S.</div><div class="k-value" id="kpi-total-os">0</div></div>
+            <div class="k-card"><div class="k-header"><span class="material-symbols-rounded icon" style="color:var(--green)">check_circle</span> Fechadas</div><div class="k-value" id="kpi-fechadas">0</div></div>
+            <div class="k-card"><div class="k-header"><span class="material-symbols-rounded icon" style="color:var(--red)">warning</span> Abertas</div><div class="k-value danger" id="kpi-abertas">0</div></div>
+            <div class="k-card"><div class="k-header"><span class="material-symbols-rounded icon">car_crash</span> Frota Afetada</div><div class="k-value" id="kpi-defeito">0</div></div>
             
-            <div class="k-card" style="padding-right: 60px;">
-                <div class="k-header"><span class="material-symbols-rounded" style="color:var(--primary)">speed</span> Eficiência</div>
-                <div class="k-value" id="kpi-eficiencia">0%</div>
-                <div class="gauge-container"><canvas id="gaugeChart"></canvas></div>
+            <div class="k-card" style="align-items: center;">
+                <div class="k-header" style="width: 100%;">
+                    <span class="material-symbols-rounded icon" style="color:var(--primary)">speed</span> Eficiência
+                    <div class="tooltip"><span class="material-symbols-rounded" style="font-size: 13px; margin-top:2px;">help</span><span class="tooltip-text">Eficiência de Fechamento:<br>Calculado dividindo O.S. Fechadas pelo Total do período filtrado.</span></div>
+                </div>
+                <div class="gauge-wrapper-centered">
+                    <div class="gauge-value-embed" id="kpi-eficiencia">0%</div>
+                    <canvas id="gaugeChart" class="gauge-canvas-embed"></canvas>
+                </div>
             </div>
             
-            <div class="k-card"><div class="k-header"><span class="material-symbols-rounded">timelapse</span> Média Resolução</div><div class="k-value" id="kpi-media-dias">0 <span style="font-size:12px;color:var(--text-muted)">Dias</span></div></div>
+            <div class="k-card">
+                <div class="k-header">
+                    <span class="material-symbols-rounded icon">timelapse</span> Média Resolução
+                    <div class="tooltip"><span class="material-symbols-rounded" style="font-size: 13px; margin-top:2px;">help</span><span class="tooltip-text">Média histórica (em dias) que os Fornecedores levam para fechar os chamados filtrados.</span></div>
+                </div>
+                <div class="k-value" id="kpi-media-dias">0 <span style="font-size:12px;color:var(--text-muted)">Dias</span></div>
+            </div>
         </div>
     </div>
 
     <div class="grid">
         <div class="box">
-            <div class="b-header"><span class="material-symbols-rounded">list_alt</span> Listagem Geral de O.S.</div>
+            <div class="b-header"><div class="b-header-title"><span class="material-symbols-rounded">list_alt</span> Listagem Geral de O.S.</div></div>
             <div class="scroll">
                 <table>
                     <thead>
                         <tr>
-                            <th>O. S</th><th class="sortable" onclick="toggleSort('data')">Data ⇅</th>
-                            <th>Veículo</th><th>Filial</th><th>Equipamento</th>
-                            <th>Descrição Completa</th><th class="sortable" onclick="toggleSort('dias')">Dias ⇅</th><th>Status</th>
+                            <th style="text-align:left;">O. S</th>
+                            <th class="sortable" onclick="toggleSort('data')" style="text-align:left;">Data ⇅</th>
+                            <th style="text-align:left;">Veículo</th>
+                            <th style="text-align:left;">Filial</th>
+                            <th style="text-align:left;">Equipamento</th>
+                            <th style="text-align:left;">Descrição Completa</th>
+                            <th class="sortable" onclick="toggleSort('dias')" style="text-align:center;">Dias ⇅</th>
+                            <th style="text-align:center;">Status</th>
                         </tr>
                     </thead>
                     <tbody id="table-body">
                         <tr><td colspan="8"><div class="skeleton"></div><div class="skeleton" style="width:70%"></div><div class="skeleton" style="width:85%"></div><div class="skeleton" style="width:50%"></div></td></tr>
                     </tbody>
                     <tfoot>
-                        <tr><td colspan="6">Acumulado em Aberto (SLA Pendente)</td><td id="table-total-dias">0</td><td></td></tr>
+                        <tr><td colspan="6">Acumulado em Aberto (SLA Pendente)</td><td id="table-total-dias" style="text-align:center;">0</td><td></td></tr>
                     </tfoot>
                 </table>
             </div>
@@ -329,7 +366,7 @@
 
         <div class="right-column">
             <div class="box" style="flex: 1.2;">
-                <div class="b-header"><span class="material-symbols-rounded">grid_on</span> Matriz Cruzada (Filial x Equipamento)</div>
+                <div class="b-header"><div class="b-header-title"><span class="material-symbols-rounded">grid_on</span> Matriz Cruzada (Filial x Equipamento)</div></div>
                 <div class="scroll">
                     <table id="matrix-table" class="clickable-matrix">
                         <thead></thead><tbody id="matrix-table-body"></tbody><tfoot></tfoot>
@@ -339,15 +376,21 @@
 
             <div class="sub-split">
                 <div class="box">
-                    <div class="b-header"><span class="material-symbols-rounded">handyman</span> Maiores Defeitos</div>
+                    <div class="b-header" style="cursor: pointer;" onclick="toggleListSort('pareto')" title="Alternar ordenação (Quant./Alpha)">
+                        <div class="b-header-title"><span class="material-symbols-rounded">handyman</span> Maiores Defeitos</div>
+                        <span class="material-symbols-rounded sortable-list-btn">sort</span>
+                    </div>
                     <div class="scroll pareto-list" id="pareto-container"></div>
                 </div>
                 <div class="box">
-                    <div class="b-header"><span class="material-symbols-rounded">local_taxi</span> Veículos Críticos</div>
+                    <div class="b-header" style="cursor: pointer;" onclick="toggleListSort('vehicle')" title="Alternar ordenação (Quant./Alpha)">
+                        <div class="b-header-title"><span class="material-symbols-rounded">local_taxi</span> Veículos Críticos</div>
+                        <span class="material-symbols-rounded sortable-list-btn">sort</span>
+                    </div>
                     <div class="scroll pareto-list" id="vehicle-container"></div>
                 </div>
                 <div class="box" style="flex: 1.2;">
-                    <div class="b-header"><span class="material-symbols-rounded">bar_chart</span> Volumetria O.S.</div>
+                    <div class="b-header"><div class="b-header-title"><span class="material-symbols-rounded">bar_chart</span> Volumetria O.S.</div></div>
                     <div class="chart-container"><canvas id="chartEq"></canvas></div>
                 </div>
             </div>
@@ -375,14 +418,17 @@
     let chartInstance = null, gaugeInstance = null;
     let osData = [], currentFilteredData = [];
     
+    // Controles de Sincronização e Renderização Otimizada
+    let syncTimer = 40; let currentSyncTime = 0; let isFetching = false;
     let maxTableRows = 100;
-    let oldHtmlTabela = ""; 
+    let oldHtmlTabela = "", oldParetoHtml = "", oldVehicleHtml = "", oldMatrixHtml = ""; 
+    let lastRawData = ""; 
     const msgTudoBem = `<div class="all-good-msg"><span class="material-symbols-rounded">check_circle</span>Esta tudo bem por aqui</div>`;
 
-    // ARRAY GLOBAL DE FILTROS MÚLTIPLOS (Todos os Filtros agora suportam arrays)
-    let selectedFilters = {
-        ano: [], mes: [], filial: [], veiculo: [], equip: [], desc: [], situacao: []
-    };
+    // Filtros Multi-seleção com LocalStorage
+    let selectedFilters = { ano: [], mes: [], filial: [], veiculo: [], equip: [], desc: [], situacao: [] };
+    let filtersCacheStr = {}; 
+    let listSortStates = { pareto: 'count', vehicle: 'count' };
 
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwi1P0OM9i6MnRYNKYf7yEjNC2M-hT1H-BcMd2aiRQC-9EJ0_FkhOiMrKOMrjieSg6Xzg/exec";
 
@@ -414,37 +460,79 @@
             if (!startTimestamp) startTimestamp = timestamp;
             const progress = Math.min((timestamp - startTimestamp) / duration, 1);
             const current = Math.floor(progress * (end - start) + start);
-            obj.innerHTML = current + (isPercent ? "%" : (id === 'kpi-media-dias' ? ' <span style="font-size:12px;color:var(--text-muted)">Dias</span>' : ''));
+            let displayVal = current.toLocaleString('pt-BR');
+            obj.innerHTML = displayVal + (isPercent ? "%" : (id === 'kpi-media-dias' ? ' <span style="font-size:12px;color:var(--text-muted)">Dias</span>' : ''));
             if (progress < 1) window.requestAnimationFrame(step);
-            else obj.innerHTML = end + (isPercent ? "%" : (id === 'kpi-media-dias' ? ' <span style="font-size:12px;color:var(--text-muted)">Dias</span>' : ''));
+            else obj.innerHTML = end.toLocaleString('pt-BR') + (isPercent ? "%" : (id === 'kpi-media-dias' ? ' <span style="font-size:12px;color:var(--text-muted)">Dias</span>' : ''));
         };
         window.requestAnimationFrame(step);
     }
 
-    // Fechamento de segurança para cliques fora dos menus customizados
-    document.addEventListener('click', function(e) {
-        document.querySelectorAll('.custom-menu').forEach(menu => {
-            if (!menu.parentElement.contains(e.target)) {
-                menu.style.display = 'none';
+    // Persistência de Estado 
+    function saveState() {
+        localStorage.setItem('segsat_filters', JSON.stringify(selectedFilters));
+        localStorage.setItem('segsat_days', currentDaysLimit);
+    }
+
+    function loadState() {
+        let savedFilters = localStorage.getItem('segsat_filters');
+        let savedDays = localStorage.getItem('segsat_days');
+        if (savedFilters) { try { selectedFilters = JSON.parse(savedFilters); } catch(e){} } 
+        else { selectedFilters.situacao = ['ABERTA']; }
+        
+        if (savedDays) {
+            currentDaysLimit = savedDays === 'Tudo' ? 'Tudo' : parseInt(savedDays);
+            document.querySelectorAll('.btn-quick').forEach(b => b.classList.remove('active'));
+            let activeBtn = document.querySelector(`.btn-quick[onclick*="'${savedDays}'"]`) || document.querySelector(`.btn-quick[onclick*="'tudo'"]`);
+            if (activeBtn) activeBtn.classList.add('active');
+        }
+    }
+
+    function masterReset() {
+        selectedFilters = { ano: [], mes: [], filial: [], veiculo: [], equip: [], desc: [], situacao: ['ABERTA'] };
+        currentDaysLimit = 'Tudo';
+        maxTableRows = 100; oldHtmlTabela = "";
+        
+        document.querySelectorAll('.btn-quick').forEach(b => b.classList.remove('active'));
+        document.querySelector(`.btn-quick[onclick*="'tudo'"]`).classList.add('active');
+        
+        saveState();
+        Object.keys(selectedFilters).forEach(id => {
+            if(document.getElementById(`custom-${id}-options`)) {
+                updateCheckboxesUI(id);
+                document.getElementById(`custom-${id}-search`).value = '';
+                filterCustomOptions(id);
             }
         });
+        updateDashboard();
+    }
+
+    document.addEventListener('click', function(e) {
+        document.querySelectorAll('.custom-menu').forEach(menu => { if (!menu.parentElement.contains(e.target)) menu.style.display = 'none'; });
     });
 
     document.addEventListener("DOMContentLoaded", function() {
         Chart.defaults.font.family = "'Inter', sans-serif";
-        document.getElementById('sync-time').innerText = new Date().toLocaleTimeString('pt-BR');
-        solicitarDadosDoServidor();
-        setInterval(solicitarDadosDoServidor, 40000);
+        loadState();
+        solicitarDadosDoServidor(); // Chamada Inicial
+        
+        // Loop Único Global que coordena a interface e o servidor
+        setInterval(() => {
+            if (isFetching) return; 
+            
+            currentSyncTime++;
+            let pct = (currentSyncTime / syncTimer) * 100;
+            let fill = document.getElementById('sync-progress-fill');
+            
+            if (pct <= 100) fill.style.width = pct + '%';
+            if (currentSyncTime >= syncTimer) solicitarDadosDoServidor();
+            
+        }, 1000);
     });
 
-    // ============================================================================
-    // MÉTODOS DE CONTROLE PARA OS COMBOBOXES GENÉRICOS (MULTIFILTRO)
-    // ============================================================================
     function toggleCustomDropdown(event, id) {
         event.stopPropagation();
-        document.querySelectorAll('.custom-menu').forEach(menu => {
-            if (menu.id !== `custom-${id}-menu`) menu.style.display = 'none';
-        });
+        document.querySelectorAll('.custom-menu').forEach(menu => { if (menu.id !== `custom-${id}-menu`) menu.style.display = 'none'; });
         const menu = document.getElementById(`custom-${id}-menu`);
         menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
         if(menu.style.display === 'flex') document.getElementById(`custom-${id}-search`).focus();
@@ -460,14 +548,10 @@
     }
 
     function handleCustomChange(cb, id) {
-        if (cb.checked) {
-            if (!selectedFilters[id].includes(cb.value)) selectedFilters[id].push(cb.value);
-        } else {
-            selectedFilters[id] = selectedFilters[id].filter(v => v !== cb.value);
-        }
+        if (cb.checked) { if (!selectedFilters[id].includes(cb.value)) selectedFilters[id].push(cb.value); } 
+        else { selectedFilters[id] = selectedFilters[id].filter(v => v !== cb.value); }
         maxTableRows = 100; oldHtmlTabela = "";
-        updateCustomTriggerText(id); 
-        updateDashboard();
+        updateCustomTriggerText(id); saveState(); updateDashboard();
     }
 
     function selectAllCustom(id, action) {
@@ -475,66 +559,76 @@
         checkboxes.forEach(cb => {
             if (cb.parentElement.style.display !== 'none') {
                 cb.checked = action;
-                if (action) {
-                    if (!selectedFilters[id].includes(cb.value)) selectedFilters[id].push(cb.value);
-                } else {
-                    selectedFilters[id] = selectedFilters[id].filter(v => v !== cb.value);
-                }
+                if (action) { if (!selectedFilters[id].includes(cb.value)) selectedFilters[id].push(cb.value); } 
+                else { selectedFilters[id] = selectedFilters[id].filter(v => v !== cb.value); }
             }
         });
         maxTableRows = 100; oldHtmlTabela = "";
-        updateCustomTriggerText(id); 
-        updateDashboard();
+        updateCustomTriggerText(id); saveState(); updateDashboard();
     }
 
     function updateCustomTriggerText(id) {
         const textSpan = document.getElementById(`custom-${id}-text`);
-        if (selectedFilters[id].length === 0) {
-            textSpan.innerText = 'Tudo';
-        } else if (selectedFilters[id].length === 1) {
-            textSpan.innerText = selectedFilters[id][0];
-        } else {
-            textSpan.innerText = `${selectedFilters[id].length} Itens`;
-        }
+        if (selectedFilters[id].length === 0) textSpan.innerText = 'Tudo';
+        else if (selectedFilters[id].length === 1) textSpan.innerText = selectedFilters[id][0];
+        else textSpan.innerText = `${selectedFilters[id].length} Itens`;
     }
 
     function updateCheckboxesUI(id) {
         const checkboxes = document.querySelectorAll(`#custom-${id}-options input[type="checkbox"]`);
-        checkboxes.forEach(cb => {
-            cb.checked = selectedFilters[id].includes(cb.value);
-        });
+        checkboxes.forEach(cb => { cb.checked = selectedFilters[id].includes(cb.value); });
         updateCustomTriggerText(id);
     }
-    // ============================================================================
+
+    // Gerencia o resgate e o visual da sincronização simultaneamente
+    function atualizarRelogioEBarra(sucesso = true) {
+        document.getElementById('sync-time').innerText = new Date().toLocaleTimeString('pt-BR');
+        const dot = document.getElementById('live-dot');
+        if(sucesso) dot.classList.remove('error'); else dot.classList.add('error');
+
+        currentSyncTime = 0;
+        let fill = document.getElementById('sync-progress-fill');
+        fill.style.transition = 'none'; // Corta a animação para voltar seco
+        fill.style.width = '0%';
+        
+        void fill.offsetWidth; // Força o reflow do navegador
+        
+        fill.style.transition = 'width 1s linear'; // Devolve a fluidez para o próximo ciclo
+        isFetching = false; 
+    }
 
     function solicitarDadosDoServidor() {
+        isFetching = true;
         fetch(WEB_APP_URL, { redirect: 'follow' })
             .then(response => response.text())
             .then(text => {
                 try {
+                    if (text === lastRawData && osData.length > 0) {
+                        atualizarRelogioEBarra(true);
+                        return; 
+                    }
+                    lastRawData = text;
+
                     let jsonStr = text;
                     let indexArray = text.indexOf('[');
                     let indexObj = text.indexOf('{');
                     let startIndex = indexArray !== -1 && indexObj !== -1 ? Math.min(indexArray, indexObj) : Math.max(indexArray, indexObj);
-
                     if (startIndex !== -1) jsonStr = text.substring(startIndex);
+                    
                     const dadosParseados = JSON.parse(jsonStr);
                     let arrayDados = Array.isArray(dadosParseados) ? dadosParseados : [];
-                    
                     if (!Array.isArray(dadosParseados)) {
                         for (let key in dadosParseados) { if (Array.isArray(dadosParseados[key])) { arrayDados = dadosParseados[key]; break; } }
                     }
 
                     if (arrayDados.length > 0) {
                         processarDadosPlanilha(arrayDados);
-                        document.getElementById('sync-time').innerText = new Date().toLocaleTimeString('pt-BR');
-                        document.getElementById('live-dot').classList.remove('error');
+                        atualizarRelogioEBarra(true);
+                    } else {
+                        atualizarRelogioEBarra(false);
                     }
-                } catch (e) {
-                    document.getElementById('live-dot').classList.add('error');
-                    console.error("Erro no processamento dos dados:", e);
-                }
-            }).catch(erro => { document.getElementById('live-dot').classList.add('error'); });
+                } catch (e) { atualizarRelogioEBarra(false); }
+            }).catch(erro => { atualizarRelogioEBarra(false); });
     }
 
     function processarDadosPlanilha(dados) {
@@ -606,105 +700,85 @@
     }
 
     function populateFilters() {
-        const filterKeys = {
-            ano: 'ano', mes: 'mes', filial: 'filial', veiculo: 'veiculo',
-            equip: 'equipamento', desc: 'desc_filtro', situacao: 'situacao'
-        };
-
-        // Trava de Primeira Carga para Status Aberto
-        if (selectedFilters.situacao.length === 0 && !window.firstLoadDone && osData.some(i => i.situacao === 'ABERTA')) {
-            selectedFilters.situacao = ['ABERTA'];
-            window.firstLoadDone = true;
-        }
+        const filterKeys = { ano: 'ano', mes: 'mes', filial: 'filial', veiculo: 'veiculo', equip: 'equipamento', desc: 'desc_filtro', situacao: 'situacao' };
 
         Object.keys(filterKeys).forEach(id => {
             let uniqueVals = [];
-            if (id === 'mes') {
-                uniqueVals = listaMeses;
-            } else {
-                uniqueVals = [...new Set(osData.map(item => (item[filterKeys[id]] || '').toString().trim()))].filter(Boolean).sort();
+            if (id === 'mes') uniqueVals = listaMeses;
+            else uniqueVals = [...new Set(osData.map(item => (item[filterKeys[id]] || '').toString().trim()))].filter(Boolean).sort();
+            
+            let valHash = uniqueVals.join('|');
+            if (filtersCacheStr[id] !== valHash) {
+                const optionsDiv = document.getElementById(`custom-${id}-options`);
+                optionsDiv.innerHTML = '';
+                uniqueVals.forEach(v => {
+                    const isChecked = selectedFilters[id].includes(v) ? 'checked' : '';
+                    optionsDiv.innerHTML += `
+                        <label class="custom-option-lbl">
+                            <input type="checkbox" value="${v}" ${isChecked} onchange="handleCustomChange(this, '${id}')" style="accent-color:var(--primary); width:14px; height:14px; cursor:pointer;">
+                            <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px;" title="${v}">${v}</span>
+                        </label>`;
+                });
+                filtersCacheStr[id] = valHash;
             }
-            
-            const optionsDiv = document.getElementById(`custom-${id}-options`);
-            optionsDiv.innerHTML = '';
-            
-            uniqueVals.forEach(v => {
-                const isChecked = selectedFilters[id].includes(v) ? 'checked' : '';
-                optionsDiv.innerHTML += `
-                    <label class="custom-option-lbl">
-                        <input type="checkbox" value="${v}" ${isChecked} onchange="handleCustomChange(this, '${id}')" style="accent-color:var(--primary); width:14px; height:14px; cursor:pointer;">
-                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px;" title="${v}">${v}</span>
-                    </label>`;
-            });
             updateCustomTriggerText(id);
         });
     }
 
     function clickMatrixCell(branch, equipment) {
         maxTableRows = 100; oldHtmlTabela = "";
-        
         if (branch) {
-            if (selectedFilters.filial.length === 1 && selectedFilters.filial[0] === branch && !equipment) {
-                selectedFilters.filial = [];
-            } else {
-                selectedFilters.filial = [branch];
-            }
+            if (selectedFilters.filial.length === 1 && selectedFilters.filial[0] === branch && !equipment) selectedFilters.filial = [];
+            else selectedFilters.filial = [branch];
         } else { selectedFilters.filial = []; }
 
         if (equipment) {
-            if (selectedFilters.equip.length === 1 && selectedFilters.equip[0] === equipment) {
-                selectedFilters.equip = [];
-            } else {
-                selectedFilters.equip = [equipment];
-            }
+            if (selectedFilters.equip.length === 1 && selectedFilters.equip[0] === equipment) selectedFilters.equip = [];
+            else selectedFilters.equip = [equipment];
         }
-        
-        updateCheckboxesUI('filial'); updateCheckboxesUI('equip');
-        updateDashboard();
+        updateCheckboxesUI('filial'); updateCheckboxesUI('equip'); saveState(); updateDashboard();
     }
 
     function clickParetoItem(defectName) { 
         maxTableRows = 100; oldHtmlTabela = ""; 
-        if (selectedFilters.desc.includes(defectName)) { 
-            selectedFilters.desc = selectedFilters.desc.filter(v => v !== defectName); 
-        } else { 
-            selectedFilters.desc.push(defectName); 
-        }
-        updateCheckboxesUI('desc'); updateDashboard(); 
+        if (selectedFilters.desc.includes(defectName)) selectedFilters.desc = selectedFilters.desc.filter(v => v !== defectName);
+        else selectedFilters.desc.push(defectName);
+        updateCheckboxesUI('desc'); saveState(); updateDashboard(); 
     }
     
     function clickVehicleItem(vehicleNum) { 
         maxTableRows = 100; oldHtmlTabela = ""; 
-        if (selectedFilters.veiculo.includes(vehicleNum)) { 
-            selectedFilters.veiculo = selectedFilters.veiculo.filter(v => v !== vehicleNum); 
-        } else { 
-            selectedFilters.veiculo.push(vehicleNum); 
-        }
-        updateCheckboxesUI('veiculo'); updateDashboard(); 
+        if (selectedFilters.veiculo.includes(vehicleNum)) selectedFilters.veiculo = selectedFilters.veiculo.filter(v => v !== vehicleNum);
+        else selectedFilters.veiculo.push(vehicleNum);
+        updateCheckboxesUI('veiculo'); saveState(); updateDashboard(); 
     }
 
     function setQuickFilter(mode, btn) {
         maxTableRows = 100; oldHtmlTabela = "";
         document.querySelectorAll('.btn-quick').forEach(b => b.classList.remove('active')); btn.classList.add('active');
-        currentDaysLimit = mode === 'tudo' ? 'Tudo' : parseInt(mode); updateDashboard();
+        currentDaysLimit = mode === 'tudo' ? 'Tudo' : parseInt(mode); saveState(); updateDashboard();
     }
+    
     function toggleSort(col) { maxTableRows = 100; oldHtmlTabela = ""; currentSort.desc = currentSort.column === col ? !currentSort.desc : true; currentSort.column = col; updateDashboard(); }
-    function carregarMaisLinhas() { maxTableRows += 150; oldHtmlTabela = ""; updateDashboard(); }
+    function toggleListSort(listType) { listSortStates[listType] = listSortStates[listType] === 'count' ? 'alpha' : 'count'; updateDashboard(); }
+    function carregarMaisLinhas() { maxTableRows += 150; updateDashboard(); }
 
     function updateDashboard() {
         try {
             if (!osData.length) return;
+            const fAno = selectedFilters.ano; const fMes = selectedFilters.mes;
+            const fFilial = selectedFilters.filial; const fVeiculo = selectedFilters.veiculo;
+            const fEquip = selectedFilters.equip; const fSit = selectedFilters.situacao;
 
             let filtered = osData.filter(item => {
                 let matchDays = (currentDaysLimit === 'Tudo' || item.dias <= currentDaysLimit);
-                
-                let matchAno = selectedFilters.ano.length === 0 || selectedFilters.ano.includes(item.ano);
-                let matchMes = selectedFilters.mes.length === 0 || selectedFilters.mes.includes(item.mes);
-                let matchFilial = selectedFilters.filial.length === 0 || selectedFilters.filial.includes(item.filial);
-                let matchVeiculo = selectedFilters.veiculo.length === 0 || selectedFilters.veiculo.includes(item.veiculo);
-                let matchEquip = selectedFilters.equip.length === 0 || selectedFilters.equip.includes(item.equipamento);
+                let matchAno = fAno.length === 0 || fAno.includes(item.ano);
+                let matchMes = fMes.length === 0 || fMes.includes(item.mes);
+                let matchFilial = fFilial.length === 0 || fFilial.includes(item.filial);
+                let matchVeiculo = fVeiculo.length === 0 || fVeiculo.includes(item.veiculo);
+                let matchEquip = fEquip.length === 0 || fEquip.includes(item.equipamento);
                 let matchDesc = selectedFilters.desc.length === 0 || selectedFilters.desc.includes(item.desc_filtro);
-                let matchSit = selectedFilters.situacao.length === 0 || selectedFilters.situacao.includes(item.situacao.toUpperCase());
+                let matchSit = fSit.length === 0 || fSit.includes(item.situacao.toUpperCase());
 
                 return matchDays && matchAno && matchMes && matchFilial && matchVeiculo && matchEquip && matchDesc && matchSit;
             });
@@ -731,17 +805,26 @@
                 matrix[f][eq] = (matrix[f][eq] || 0) + 1; matrix[f].rowTotal++;
             });
 
-            // TABELA GERAL
             let htmlTabela = '';
             let linhasVisiveis = filtered.slice(0, maxTableRows);
             linhasVisiveis.forEach((item, index) => {
-                let sitColor = item.situacao === 'FECHADA' ? 'var(--green)' : 'var(--red)';
+                let badgeClass = item.situacao === 'FECHADA' ? 'pill-badge pill-fechada' : 'pill-badge pill-aberta';
                 let rowClass = 'fade-in';
-                if (item.dias >= 60 && item.situacao === 'ABERTA') rowClass += ' sla-critical';
-                else if (item.dias >= 45 && item.situacao === 'ABERTA') rowClass += ' sla-warning';
+                let slaIcon = '';
+                
+                if (item.dias >= 60 && item.situacao === 'ABERTA') { rowClass += ' sla-critical'; slaIcon = '🚨 '; }
+                else if (item.dias >= 45 && item.situacao === 'ABERTA') { rowClass += ' sla-warning'; slaIcon = '⏳ '; }
+                
                 let delay = (index % maxTableRows) * 0.002; 
                 htmlTabela += `<tr class="${rowClass}" style="animation-delay: ${delay}s">
-                    <td><b>${item.os}</b></td><td>${item.data}</td><td>${item.veiculo}</td><td>${item.filial}</td><td>${item.equipamento}</td><td>${item.defeito}</td><td><b>${item.dias}</b></td><td><b style="color:${sitColor}">${item.situacao}</b></td>
+                    <td style="text-align:left;"><b>${slaIcon}${item.os}</b></td>
+                    <td style="text-align:left;">${item.data}</td>
+                    <td style="text-align:left;">${item.veiculo}</td>
+                    <td style="text-align:left;">${item.filial}</td>
+                    <td style="text-align:left;">${item.equipamento}</td>
+                    <td style="text-align:left;">${item.defeito}</td>
+                    <td style="text-align:center;"><b>${item.dias}</b></td>
+                    <td style="text-align:center;"><span class="${badgeClass}">${item.situacao}</span></td>
                 </tr>`;
             });
             if (filtered.length > maxTableRows) {
@@ -756,27 +839,21 @@
             if (finalHtmlTabela !== oldHtmlTabela) { document.getElementById('table-body').innerHTML = finalHtmlTabela; oldHtmlTabela = finalHtmlTabela; }
             animateValue('table-total-dias', totalDiasTabela);
 
-            // ==========================================
-            // PARETOS INTELIGENTES
-            // ==========================================
             let pareto = {};
             let vehicleCounts = {};
             osData.forEach(item => {
                 let matchDays = (currentDaysLimit === 'Tudo' || item.dias <= currentDaysLimit);
-                let matchAno = selectedFilters.ano.length === 0 || selectedFilters.ano.includes(item.ano);
-                let matchMes = selectedFilters.mes.length === 0 || selectedFilters.mes.includes(item.mes);
-                let matchFilial = selectedFilters.filial.length === 0 || selectedFilters.filial.includes(item.filial);
-                let matchVeiculo = selectedFilters.veiculo.length === 0 || selectedFilters.veiculo.includes(item.veiculo);
-                let matchEquip = selectedFilters.equip.length === 0 || selectedFilters.equip.includes(item.equipamento);
+                let matchAno = fAno.length === 0 || fAno.includes(item.ano);
+                let matchMes = fMes.length === 0 || fMes.includes(item.mes);
+                let matchFilial = fFilial.length === 0 || fFilial.includes(item.filial);
+                let matchVeiculo = fVeiculo.length === 0 || fVeiculo.includes(item.veiculo);
+                let matchEquip = fEquip.length === 0 || fEquip.includes(item.equipamento);
+                let matchSit = fSit.length === 0 || fSit.includes(item.situacao.toUpperCase());
                 let matchDesc = selectedFilters.desc.length === 0 || selectedFilters.desc.includes(item.desc_filtro);
-                let matchSit = selectedFilters.situacao.length === 0 || selectedFilters.situacao.includes(item.situacao.toUpperCase());
 
-                // Pareto de Defeitos ignora filtro de Defeito
                 if (matchDays && matchAno && matchMes && matchFilial && matchVeiculo && matchEquip && matchSit) {
                     pareto[item.desc_filtro] = (pareto[item.desc_filtro] || 0) + 1;
                 }
-
-                // Pareto de Veículos ignora filtro de Veiculo
                 if (matchDays && matchAno && matchMes && matchFilial && matchEquip && matchDesc && matchSit) {
                     if (item.veiculo && item.veiculo !== '-') {
                         vehicleCounts[item.veiculo] = (vehicleCounts[item.veiculo] || 0) + 1;
@@ -784,48 +861,56 @@
                 }
             });
 
-            const generateParetoList = (dataObj, maxVal, activeArray, clickFunc, prefix="") => {
+            const generateParetoList = (dataObj, maxVal, activeArray, clickFunc, prefix="", sortType="count") => {
                 if (Object.keys(dataObj).length === 0) return "";
                 let html = '';
-                Object.keys(dataObj).map(k=>({n:k,c:dataObj[k]})).sort((a,b)=>b.c-a.c).slice(0,10).forEach(p => {
+                let arr = Object.keys(dataObj).map(k=>({n:k,c:dataObj[k]}));
+                
+                if (sortType === 'count') arr.sort((a,b)=>b.c-a.c);
+                else arr.sort((a,b)=>a.n.localeCompare(b.n));
+
+                arr.slice(0,10).forEach(p => {
                     let w = Math.max(5, (p.c / maxVal) * 100);
                     let isAct = activeArray.includes(p.n) ? 'active-pareto' : '';
                     html += `<div class="pareto-item ${isAct}" onclick="${clickFunc}('${p.n.replace(/'/g, "\\'")}')">
                                 <div class="pareto-bg" style="width: ${w}%"></div>
-                                <div class="pareto-content"><span class="pareto-name" title="${p.n}">${prefix}${p.n}</span><span class="pareto-count">${p.c}x</span></div>
+                                <div class="pareto-content"><span class="pareto-name" title="${p.n}">${prefix}${p.n}</span><span class="pareto-count">${p.c.toLocaleString('pt-BR')}x</span></div>
                              </div>`;
                 });
                 return html;
             };
 
             let maxPareto = Math.max(...Object.values(pareto), 1);
-            document.getElementById('pareto-container').innerHTML = generateParetoList(pareto, maxPareto, selectedFilters.desc, 'clickParetoItem') || msgTudoBem;
+            let finalParetoHtml = generateParetoList(pareto, maxPareto, selectedFilters.desc, 'clickParetoItem', '', listSortStates.pareto) || msgTudoBem;
+            if (finalParetoHtml !== oldParetoHtml) { document.getElementById('pareto-container').innerHTML = finalParetoHtml; oldParetoHtml = finalParetoHtml; }
 
             let maxVeic = Math.max(...Object.values(vehicleCounts), 1);
-            document.getElementById('vehicle-container').innerHTML = generateParetoList(vehicleCounts, maxVeic, selectedFilters.veiculo, 'clickVehicleItem', '🚘 ') || msgTudoBem;
+            let finalVehicleHtml = generateParetoList(vehicleCounts, maxVeic, selectedFilters.veiculo, 'clickVehicleItem', '🚘 ', listSortStates.vehicle) || msgTudoBem;
+            if (finalVehicleHtml !== oldVehicleHtml) { document.getElementById('vehicle-container').innerHTML = finalVehicleHtml; oldVehicleHtml = finalVehicleHtml; }
 
-            // MATRIZ CRUZADA
-            document.querySelector('#matrix-table thead').innerHTML = `<tr><th>Filial</th>${equipamentosUnicos.map(e => `<th>${e}</th>`).join('')}<th>Total</th></tr>`;
+            document.querySelector('#matrix-table thead').innerHTML = `<tr><th style="text-align:left;">Filial</th>${equipamentosUnicos.map(e => `<th style="text-align:center;">${e}</th>`).join('')}<th style="text-align:center;">Total</th></tr>`;
             let mHTML = '', colTotals = {}, grandTotal = 0;
             equipamentosUnicos.forEach(e => colTotals[e] = 0);
 
             Object.keys(matrix).sort().forEach(b => {
                 let d = matrix[b]; let isRowActive = selectedFilters.filial.includes(b) ? 'active-filter-row' : '';
-                mHTML += `<tr class="${isRowActive}"><td class="matrix-branch-click" onclick="clickMatrixCell('${b}', null)">${b}</td>`;
+                mHTML += `<tr class="${isRowActive}"><td class="matrix-branch-click" style="text-align:left;" onclick="clickMatrixCell('${b}', null)">${b}</td>`;
                 equipamentosUnicos.forEach(eq => {
                     let v = d[eq] || 0; colTotals[eq] += v;
                     let isCellActive = (selectedFilters.filial.includes(b) && selectedFilters.equip.includes(eq)) ? 'active-filter-cell' : '';
-                    mHTML += `<td class="clickable-cell ${isCellActive}" onclick="clickMatrixCell('${b}', '${eq}')">${v || ""}</td>`;
+                    mHTML += `<td class="clickable-cell ${isCellActive}" style="text-align:center;" onclick="clickMatrixCell('${b}', '${eq}')">${v ? v.toLocaleString('pt-BR') : ""}</td>`;
                 });
-                mHTML += `<td><b>${d.rowTotal}</b></td></tr>`; grandTotal += d.rowTotal;
+                mHTML += `<td style="text-align:center;"><b>${d.rowTotal.toLocaleString('pt-BR')}</b></td></tr>`; grandTotal += d.rowTotal;
             });
-            if (mHTML === '') { mHTML = `<tr><td colspan="${equipamentosUnicos.length + 2}">${msgTudoBem}</td></tr>`; }
-            document.getElementById('matrix-table-body').innerHTML = mHTML;
-            document.querySelector('#matrix-table tfoot').innerHTML = `<tr><td>Total</td>${equipamentosUnicos.map(eq => `<td><b>${colTotals[eq]}</b></td>`).join('')}<td><b>${grandTotal}</b></td></tr>`;
+            let finalMatrixHtml = mHTML === '' ? `<tr><td colspan="${equipamentosUnicos.length + 2}">${msgTudoBem}</td></tr>` : mHTML;
+            if (finalMatrixHtml !== oldMatrixHtml) {
+                document.getElementById('matrix-table-body').innerHTML = finalMatrixHtml;
+                document.querySelector('#matrix-table tfoot').innerHTML = mHTML === '' ? '' : `<tr><td style="text-align:left;">Total</td>${equipamentosUnicos.map(eq => `<td style="text-align:center;"><b>${colTotals[eq].toLocaleString('pt-BR')}</b></td>`).join('')}<td style="text-align:center;"><b>${grandTotal.toLocaleString('pt-BR')}</b></td></tr>`;
+                oldMatrixHtml = finalMatrixHtml;
+            }
 
             updateChart(equipamentosUnicos, colTotals);
 
-            // KPIs MACRO
             let abertasExatas = filtered.filter(i => i.situacao === 'ABERTA').length;
             let fechadasExatas = filtered.filter(i => i.situacao === 'FECHADA').length;
             let tot = abertasExatas + fechadasExatas;
@@ -840,7 +925,6 @@
             
         } catch (erro) {
             console.error("Erro interno na renderização:", erro);
-            document.getElementById('live-dot').classList.add('error');
         }
     }
 
@@ -852,8 +936,8 @@
             const ctx = document.getElementById('gaugeChart').getContext('2d');
             gaugeInstance = new Chart(ctx, {
                 type: 'doughnut',
-                data: { datasets: [{ data: [percent, 100 - percent], backgroundColor: ['#0f7561', 'rgba(0,0,0,0.05)'], borderWidth: 0, borderRadius: [4,0] }] },
-                options: { responsive: true, maintainAspectRatio: false, rotation: 270, circumference: 180, cutout: '80%', plugins: { tooltip: {enabled: false}, legend: {display: false} } }
+                data: { datasets: [{ data: [percent, 100 - percent], backgroundColor: ['#0f7561', 'rgba(0,0,0,0.04)'], borderWidth: 0, borderRadius: [4,0] }] },
+                options: { responsive: true, maintainAspectRatio: false, rotation: 270, circumference: 180, cutout: '82%', plugins: { tooltip: {enabled: false}, legend: {display: false} }, animation: { animateScale: true } }
             });
         }
     }
@@ -883,12 +967,10 @@
                             const label = chartInstance.data.labels[index];
                             maxTableRows = 100; oldHtmlTabela = "";
                             
-                            if (selectedFilters.equip.includes(label)) {
-                                selectedFilters.equip = selectedFilters.equip.filter(v => v !== label);
-                            } else {
-                                selectedFilters.equip = [label];
-                            }
-                            updateCheckboxesUI('equip'); updateDashboard();
+                            if (selectedFilters.equip.includes(label)) selectedFilters.equip = selectedFilters.equip.filter(v => v !== label);
+                            else selectedFilters.equip = [label];
+                            
+                            updateCheckboxesUI('equip'); saveState(); updateDashboard();
                         }
                     }
                 }
