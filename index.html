@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard O.S - Segsat</title>
     
+    <!-- Fontes, Ícones e Motores de Gráficos e PDF -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,600,1,0" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -58,10 +59,21 @@
         .btn-export { background: #3182ce; color: #fff; border: none; padding: 6px 14px; border-radius: 20px; font-size: 11px; font-weight: 700; cursor: pointer; transition: var(--transition); display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 10px rgba(49, 130, 206, 0.3); }
         .btn-export:hover { background: #2b6cb0; transform: translateY(-2px); }
 
-        .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+        .filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
         .f-card { background: var(--bg-color); border: 1px solid var(--border); border-radius: 8px; display: flex; align-items: center; transition: var(--transition); }
         .f-card label { background: var(--primary); color: #fff; font-size: 10px; font-weight: 700; display: flex; align-items: center; gap: 4px; padding: 8px 10px; flex-shrink: 0; border-radius: 7px 0 0 7px; transition: var(--transition); }
-        .f-card select { width: 100%; padding: 6px; border: none; font-size: 12px; outline: none; color: var(--text-main); background: transparent; cursor: pointer; font-weight: 600; }
+        
+        /* Classes dos Filtros Multi-seleção Customizados */
+        .custom-trigger { width: 100%; padding: 6px 10px; font-size: 11px; font-weight: 700; color: var(--text-main); cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: transparent; }
+        .custom-trigger-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px; }
+        .custom-menu { display: none; position: absolute; top: 100%; left: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); z-index: 1000; max-height: 280px; padding: 8px; flex-direction: column; gap: 6px; min-width: 190px; width: max-content; }
+        .custom-search { width: 100%; padding: 6px 8px; font-size: 11px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-color); color: var(--text-main); outline: none; }
+        .custom-actions { display: flex; gap: 10px; padding: 2px 0; border-bottom: 1px solid var(--border); margin-bottom: 2px; }
+        .btn-mark { background: none; border: none; color: var(--primary); font-size: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
+        .btn-clear { background: none; border: none; color: var(--red); font-size: 10px; font-weight: 800; cursor: pointer; text-transform: uppercase; }
+        .custom-options { overflow-y: auto; max-height: 170px; display: flex; flex-direction: column; gap: 2px; }
+        .custom-option-lbl { display:flex; align-items:center; gap:8px; font-size:11px; font-weight:600; padding:4px 6px; cursor:pointer; border-radius:4px; color:var(--text-main); transition: background 0.2s;}
+        .custom-option-lbl:hover { background: var(--bg-color); }
 
         .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
         .k-card { background: var(--surface); border-radius: 12px; box-shadow: var(--shadow); padding: 12px; display: flex; flex-direction: column; justify-content: center; position: relative; transition: var(--transition); overflow: hidden; }
@@ -154,30 +166,126 @@
                     <span class="material-symbols-rounded" style="font-size: 16px;">picture_as_pdf</span> Exportar PDF
                 </button>
             </div>
+            
             <div class="filters">
-                <div class="f-card"><label><span class="material-symbols-rounded">calendar_month</span> Ano</label><select id="filter-ano"><option value="Tudo">Tudo</option></select></div>
-                <div class="f-card"><label><span class="material-symbols-rounded">event</span> Mês</label><select id="filter-mes"><option value="Tudo">Tudo</option></select></div>
-                <div class="f-card"><label><span class="material-symbols-rounded">store</span> Filial</label><select id="filter-filial"><option value="Tudo">Tudo</option></select></div>
-                <div class="f-card"><label><span class="material-symbols-rounded">directions_car</span> Veículo</label><select id="filter-veiculo"><option value="Tudo">Tudo</option></select></div>
-                <div class="f-card"><label><span class="material-symbols-rounded">videocam</span> Equip.</label><select id="filter-equip"><option value="Tudo">Tudo</option></select></div>
-                
-                <div class="f-card" style="position: relative;" id="dropdown-desc-container">
-                    <label><span class="material-symbols-rounded">build</span> Defeito</label>
-                    <div id="custom-desc-trigger" onclick="toggleDescDropdown(event)" style="width: 100%; padding: 6px 10px; font-size: 12px; font-weight: 600; color: var(--text-main); cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: transparent;">
-                        <span id="custom-desc-text" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 110px;">Tudo</span>
+                <!-- Filtro: ANO -->
+                <div class="f-card" style="position: relative;" id="dropdown-ano-container">
+                    <label><span class="material-symbols-rounded">calendar_month</span> Ano</label>
+                    <div id="custom-ano-trigger" onclick="toggleCustomDropdown(event, 'ano')" class="custom-trigger">
+                        <span id="custom-ano-text" class="custom-trigger-text">Tudo</span>
                         <span class="material-symbols-rounded" style="font-size: 16px;">expand_more</span>
                     </div>
-                    <div id="custom-desc-menu" style="display: none; position: absolute; top: 100%; left: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); z-index: 1000; max-height: 280px; padding: 8px; flex-direction: column; gap: 6px; min-width: 240px; width: max-content;">
-                        <input type="text" id="custom-desc-search" placeholder="Pesquisar por nome..." oninput="filterDescOptions()" style="width: 100%; padding: 6px 8px; font-size: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-color); color: var(--text-main); outline: none;">
-                        <div style="display: flex; gap: 10px; padding: 2px 0; border-bottom: 1px solid var(--border); margin-bottom: 2px;">
-                            <button type="button" onclick="selectAllDesc(true)" style="background: none; border: none; color: var(--primary); font-size: 11px; font-weight: 700; cursor: pointer;">Marcar Todos</button>
-                            <button type="button" onclick="selectAllDesc(false)" style="background: none; border: none; color: var(--red); font-size: 11px; font-weight: 700; cursor: pointer;">Limpar</button>
+                    <div id="custom-ano-menu" class="custom-menu">
+                        <input type="text" id="custom-ano-search" placeholder="Pesquisar..." oninput="filterCustomOptions('ano')" class="custom-search">
+                        <div class="custom-actions">
+                            <button type="button" onclick="selectAllCustom('ano', true)" class="btn-mark">Marcar Todos</button>
+                            <button type="button" onclick="selectAllCustom('ano', false)" class="btn-clear">Limpar</button>
                         </div>
-                        <div id="custom-desc-options" style="overflow-y: auto; max-height: 170px; display: flex; flex-direction: column; gap: 2px;"></div>
+                        <div id="custom-ano-options" class="custom-options"></div>
                     </div>
                 </div>
 
-                <div class="f-card"><label><span class="material-symbols-rounded">rule</span> Status</label><select id="filter-situacao"><option value="Tudo">Tudo</option></select></div>
+                <!-- Filtro: MÊS -->
+                <div class="f-card" style="position: relative;" id="dropdown-mes-container">
+                    <label><span class="material-symbols-rounded">event</span> Mês</label>
+                    <div id="custom-mes-trigger" onclick="toggleCustomDropdown(event, 'mes')" class="custom-trigger">
+                        <span id="custom-mes-text" class="custom-trigger-text">Tudo</span>
+                        <span class="material-symbols-rounded" style="font-size: 16px;">expand_more</span>
+                    </div>
+                    <div id="custom-mes-menu" class="custom-menu">
+                        <input type="text" id="custom-mes-search" placeholder="Pesquisar..." oninput="filterCustomOptions('mes')" class="custom-search">
+                        <div class="custom-actions">
+                            <button type="button" onclick="selectAllCustom('mes', true)" class="btn-mark">Marcar Todos</button>
+                            <button type="button" onclick="selectAllCustom('mes', false)" class="btn-clear">Limpar</button>
+                        </div>
+                        <div id="custom-mes-options" class="custom-options"></div>
+                    </div>
+                </div>
+
+                <!-- Filtro: FILIAL -->
+                <div class="f-card" style="position: relative;" id="dropdown-filial-container">
+                    <label><span class="material-symbols-rounded">store</span> Filial</label>
+                    <div id="custom-filial-trigger" onclick="toggleCustomDropdown(event, 'filial')" class="custom-trigger">
+                        <span id="custom-filial-text" class="custom-trigger-text">Tudo</span>
+                        <span class="material-symbols-rounded" style="font-size: 16px;">expand_more</span>
+                    </div>
+                    <div id="custom-filial-menu" class="custom-menu">
+                        <input type="text" id="custom-filial-search" placeholder="Pesquisar..." oninput="filterCustomOptions('filial')" class="custom-search">
+                        <div class="custom-actions">
+                            <button type="button" onclick="selectAllCustom('filial', true)" class="btn-mark">Marcar Todos</button>
+                            <button type="button" onclick="selectAllCustom('filial', false)" class="btn-clear">Limpar</button>
+                        </div>
+                        <div id="custom-filial-options" class="custom-options"></div>
+                    </div>
+                </div>
+
+                <!-- Filtro: VEÍCULO -->
+                <div class="f-card" style="position: relative;" id="dropdown-veiculo-container">
+                    <label><span class="material-symbols-rounded">directions_car</span> Veíc.</label>
+                    <div id="custom-veiculo-trigger" onclick="toggleCustomDropdown(event, 'veiculo')" class="custom-trigger">
+                        <span id="custom-veiculo-text" class="custom-trigger-text">Tudo</span>
+                        <span class="material-symbols-rounded" style="font-size: 16px;">expand_more</span>
+                    </div>
+                    <div id="custom-veiculo-menu" class="custom-menu">
+                        <input type="text" id="custom-veiculo-search" placeholder="Pesquisar veículo..." oninput="filterCustomOptions('veiculo')" class="custom-search">
+                        <div class="custom-actions">
+                            <button type="button" onclick="selectAllCustom('veiculo', true)" class="btn-mark">Marcar Todos</button>
+                            <button type="button" onclick="selectAllCustom('veiculo', false)" class="btn-clear">Limpar</button>
+                        </div>
+                        <div id="custom-veiculo-options" class="custom-options"></div>
+                    </div>
+                </div>
+
+                <!-- Filtro: EQUIPAMENTO -->
+                <div class="f-card" style="position: relative;" id="dropdown-equip-container">
+                    <label><span class="material-symbols-rounded">videocam</span> Equip.</label>
+                    <div id="custom-equip-trigger" onclick="toggleCustomDropdown(event, 'equip')" class="custom-trigger">
+                        <span id="custom-equip-text" class="custom-trigger-text">Tudo</span>
+                        <span class="material-symbols-rounded" style="font-size: 16px;">expand_more</span>
+                    </div>
+                    <div id="custom-equip-menu" class="custom-menu">
+                        <input type="text" id="custom-equip-search" placeholder="Pesquisar..." oninput="filterCustomOptions('equip')" class="custom-search">
+                        <div class="custom-actions">
+                            <button type="button" onclick="selectAllCustom('equip', true)" class="btn-mark">Marcar Todos</button>
+                            <button type="button" onclick="selectAllCustom('equip', false)" class="btn-clear">Limpar</button>
+                        </div>
+                        <div id="custom-equip-options" class="custom-options"></div>
+                    </div>
+                </div>
+                
+                <!-- Filtro: DEFEITO -->
+                <div class="f-card" style="position: relative;" id="dropdown-desc-container">
+                    <label><span class="material-symbols-rounded">build</span> Defeito</label>
+                    <div id="custom-desc-trigger" onclick="toggleCustomDropdown(event, 'desc')" class="custom-trigger">
+                        <span id="custom-desc-text" class="custom-trigger-text">Tudo</span>
+                        <span class="material-symbols-rounded" style="font-size: 16px;">expand_more</span>
+                    </div>
+                    <div id="custom-desc-menu" class="custom-menu">
+                        <input type="text" id="custom-desc-search" placeholder="Pesquisar por nome..." oninput="filterCustomOptions('desc')" class="custom-search">
+                        <div class="custom-actions">
+                            <button type="button" onclick="selectAllCustom('desc', true)" class="btn-mark">Marcar Todos</button>
+                            <button type="button" onclick="selectAllCustom('desc', false)" class="btn-clear">Limpar</button>
+                        </div>
+                        <div id="custom-desc-options" class="custom-options"></div>
+                    </div>
+                </div>
+
+                <!-- Filtro: STATUS -->
+                <div class="f-card" style="position: relative;" id="dropdown-situacao-container">
+                    <label><span class="material-symbols-rounded">rule</span> Status</label>
+                    <div id="custom-situacao-trigger" onclick="toggleCustomDropdown(event, 'situacao')" class="custom-trigger">
+                        <span id="custom-situacao-text" class="custom-trigger-text">Tudo</span>
+                        <span class="material-symbols-rounded" style="font-size: 16px;">expand_more</span>
+                    </div>
+                    <div id="custom-situacao-menu" class="custom-menu">
+                        <input type="text" id="custom-situacao-search" placeholder="Pesquisar..." oninput="filterCustomOptions('situacao')" class="custom-search">
+                        <div class="custom-actions">
+                            <button type="button" onclick="selectAllCustom('situacao', true)" class="btn-mark">Marcar Todos</button>
+                            <button type="button" onclick="selectAllCustom('situacao', false)" class="btn-clear">Limpar</button>
+                        </div>
+                        <div id="custom-situacao-options" class="custom-options"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -271,7 +379,10 @@
     let oldHtmlTabela = ""; 
     const msgTudoBem = `<div class="all-good-msg"><span class="material-symbols-rounded">check_circle</span>Esta tudo bem por aqui</div>`;
 
-    let selectedDescOptions = [];
+    // ARRAY GLOBAL DE FILTROS MÚLTIPLOS (Todos os Filtros agora suportam arrays)
+    let selectedFilters = {
+        ano: [], mes: [], filial: [], veiculo: [], equip: [], desc: [], situacao: []
+    };
 
     const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbwi1P0OM9i6MnRYNKYf7yEjNC2M-hT1H-BcMd2aiRQC-9EJ0_FkhOiMrKOMrjieSg6Xzg/exec";
 
@@ -310,70 +421,91 @@
         window.requestAnimationFrame(step);
     }
 
+    // Fechamento de segurança para cliques fora dos menus customizados
     document.addEventListener('click', function(e) {
-        const container = document.getElementById('dropdown-desc-container');
-        const menu = document.getElementById('custom-desc-menu');
-        if (container && !container.contains(e.target)) {
-            menu.style.display = 'none';
-        }
+        document.querySelectorAll('.custom-menu').forEach(menu => {
+            if (!menu.parentElement.contains(e.target)) {
+                menu.style.display = 'none';
+            }
+        });
     });
 
     document.addEventListener("DOMContentLoaded", function() {
         Chart.defaults.font.family = "'Inter', sans-serif";
         document.getElementById('sync-time').innerText = new Date().toLocaleTimeString('pt-BR');
         solicitarDadosDoServidor();
-
-        ['filter-ano', 'filter-mes', 'filter-filial', 'filter-veiculo', 'filter-equip', 'filter-situacao'].forEach(id => {
-            document.getElementById(id).addEventListener('change', () => { maxTableRows = 100; oldHtmlTabela = ""; updateDashboard(); });
-        });
         setInterval(solicitarDadosDoServidor, 40000);
     });
 
-    function toggleDescDropdown(event) {
+    // ============================================================================
+    // MÉTODOS DE CONTROLE PARA OS COMBOBOXES GENÉRICOS (MULTIFILTRO)
+    // ============================================================================
+    function toggleCustomDropdown(event, id) {
         event.stopPropagation();
-        const menu = document.getElementById('custom-desc-menu');
+        document.querySelectorAll('.custom-menu').forEach(menu => {
+            if (menu.id !== `custom-${id}-menu`) menu.style.display = 'none';
+        });
+        const menu = document.getElementById(`custom-${id}-menu`);
         menu.style.display = menu.style.display === 'none' ? 'flex' : 'none';
-        if(menu.style.display === 'flex') document.getElementById('custom-desc-search').focus();
+        if(menu.style.display === 'flex') document.getElementById(`custom-${id}-search`).focus();
     }
 
-    function filterDescOptions() {
-        const query = document.getElementById('custom-desc-search').value.toUpperCase();
-        const labels = document.querySelectorAll('#custom-desc-options label');
+    function filterCustomOptions(id) {
+        const query = document.getElementById(`custom-${id}-search`).value.toUpperCase();
+        const labels = document.querySelectorAll(`#custom-${id}-options label`);
         labels.forEach(lbl => {
             const txt = lbl.textContent.toUpperCase();
             lbl.style.display = txt.includes(query) ? 'flex' : 'none';
         });
     }
 
-    function handleDescChange(cb) {
+    function handleCustomChange(cb, id) {
         if (cb.checked) {
-            if (!selectedDescOptions.includes(cb.value)) selectedDescOptions.push(cb.value);
+            if (!selectedFilters[id].includes(cb.value)) selectedFilters[id].push(cb.value);
         } else {
-            selectedDescOptions = selectedDescOptions.filter(v => v !== cb.value);
+            selectedFilters[id] = selectedFilters[id].filter(v => v !== cb.value);
         }
         maxTableRows = 100; oldHtmlTabela = "";
-        updateDescTriggerText(); updateDashboard();
+        updateCustomTriggerText(id); 
+        updateDashboard();
     }
 
-    function selectAllDesc(action) {
-        const checkboxes = document.querySelectorAll('#custom-desc-options input[type="checkbox"]');
+    function selectAllCustom(id, action) {
+        const checkboxes = document.querySelectorAll(`#custom-${id}-options input[type="checkbox"]`);
         checkboxes.forEach(cb => {
             if (cb.parentElement.style.display !== 'none') {
                 cb.checked = action;
-                if (action) { if (!selectedDescOptions.includes(cb.value)) selectedDescOptions.push(cb.value); } 
-                else { selectedDescOptions = selectedDescOptions.filter(v => v !== cb.value); }
+                if (action) {
+                    if (!selectedFilters[id].includes(cb.value)) selectedFilters[id].push(cb.value);
+                } else {
+                    selectedFilters[id] = selectedFilters[id].filter(v => v !== cb.value);
+                }
             }
         });
         maxTableRows = 100; oldHtmlTabela = "";
-        updateDescTriggerText(); updateDashboard();
+        updateCustomTriggerText(id); 
+        updateDashboard();
     }
 
-    function updateDescTriggerText() {
-        const textSpan = document.getElementById('custom-desc-text');
-        if (selectedDescOptions.length === 0) textSpan.innerText = 'Tudo';
-        else if (selectedDescOptions.length === 1) textSpan.innerText = selectedDescOptions[0];
-        else textSpan.innerText = `${selectedDescOptions.length} Selecionados`;
+    function updateCustomTriggerText(id) {
+        const textSpan = document.getElementById(`custom-${id}-text`);
+        if (selectedFilters[id].length === 0) {
+            textSpan.innerText = 'Tudo';
+        } else if (selectedFilters[id].length === 1) {
+            textSpan.innerText = selectedFilters[id][0];
+        } else {
+            textSpan.innerText = `${selectedFilters[id].length} Itens`;
+        }
     }
+
+    function updateCheckboxesUI(id) {
+        const checkboxes = document.querySelectorAll(`#custom-${id}-options input[type="checkbox"]`);
+        checkboxes.forEach(cb => {
+            cb.checked = selectedFilters[id].includes(cb.value);
+        });
+        updateCustomTriggerText(id);
+    }
+    // ============================================================================
 
     function solicitarDadosDoServidor() {
         fetch(WEB_APP_URL, { redirect: 'follow' })
@@ -474,60 +606,82 @@
     }
 
     function populateFilters() {
-        let currentAno = document.getElementById('filter-ano').value;
-        let currentMes = document.getElementById('filter-mes').value;
-        let currentFilial = document.getElementById('filter-filial').value;
-        let currentVeiculo = document.getElementById('filter-veiculo').value;
-        let currentEquip = document.getElementById('filter-equip').value;
-        let currentSit = document.getElementById('filter-situacao').value;
-
-        const unique = (key) => [...new Set(osData.map(item => (item[key] || '').toString().trim()))].filter(Boolean).sort();
-        const fill = (id, arr, currentVal) => { 
-            let s = document.getElementById(id); s.innerHTML = '<option value="Tudo">Tudo</option>'; 
-            arr.forEach(v => s.innerHTML += `<option value="${v}">${v}</option>`); 
-            s.value = [...s.options].some(o => o.value === currentVal) ? currentVal : 'Tudo';
+        const filterKeys = {
+            ano: 'ano', mes: 'mes', filial: 'filial', veiculo: 'veiculo',
+            equip: 'equipamento', desc: 'desc_filtro', situacao: 'situacao'
         };
 
-        fill('filter-ano', unique('ano'), currentAno); fill('filter-mes', listaMeses, currentMes); 
-        fill('filter-filial', unique('filial'), currentFilial); fill('filter-veiculo', unique('veiculo'), currentVeiculo);
-        fill('filter-equip', unique('equipamento'), currentEquip); fill('filter-situacao', unique('situacao'), currentSit);
-        
-        const uniqueDesc = unique('desc_filtro');
-        const optionsDiv = document.getElementById('custom-desc-options');
-        optionsDiv.innerHTML = '';
-        uniqueDesc.forEach(v => {
-            const isChecked = selectedDescOptions.includes(v) ? 'checked' : '';
-            optionsDiv.innerHTML += `
-                <label style="display:flex; align-items:center; gap:8px; font-size:11px; font-weight:600; padding:4px 6px; cursor:pointer; border-radius:4px; color:var(--text-main);">
-                    <input type="checkbox" value="${v}" ${isChecked} onchange="handleDescChange(this)" style="accent-color:var(--primary); width:14px; height:14px; cursor:pointer;">
-                    <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px;" title="${v}">${v}</span>
-                </label>`;
-        });
-        updateDescTriggerText();
-
-        let selectSit = document.getElementById('filter-situacao');
-        if (currentSit === 'Tudo' && !window.firstLoadDone && osData.some(i => i.situacao === 'ABERTA')) {
-             selectSit.value = 'ABERTA'; window.firstLoadDone = true;
+        // Trava de Primeira Carga para Status Aberto
+        if (selectedFilters.situacao.length === 0 && !window.firstLoadDone && osData.some(i => i.situacao === 'ABERTA')) {
+            selectedFilters.situacao = ['ABERTA'];
+            window.firstLoadDone = true;
         }
+
+        Object.keys(filterKeys).forEach(id => {
+            let uniqueVals = [];
+            if (id === 'mes') {
+                uniqueVals = listaMeses;
+            } else {
+                uniqueVals = [...new Set(osData.map(item => (item[filterKeys[id]] || '').toString().trim()))].filter(Boolean).sort();
+            }
+            
+            const optionsDiv = document.getElementById(`custom-${id}-options`);
+            optionsDiv.innerHTML = '';
+            
+            uniqueVals.forEach(v => {
+                const isChecked = selectedFilters[id].includes(v) ? 'checked' : '';
+                optionsDiv.innerHTML += `
+                    <label class="custom-option-lbl">
+                        <input type="checkbox" value="${v}" ${isChecked} onchange="handleCustomChange(this, '${id}')" style="accent-color:var(--primary); width:14px; height:14px; cursor:pointer;">
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:200px;" title="${v}">${v}</span>
+                    </label>`;
+            });
+            updateCustomTriggerText(id);
+        });
     }
 
     function clickMatrixCell(branch, equipment) {
         maxTableRows = 100; oldHtmlTabela = "";
-        document.getElementById('filter-filial').value = (document.getElementById('filter-filial').value === branch && !equipment) ? 'Tudo' : (branch || 'Tudo');
-        if (equipment) document.getElementById('filter-equip').value = (document.getElementById('filter-equip').value === equipment) ? 'Tudo' : equipment;
+        
+        if (branch) {
+            if (selectedFilters.filial.length === 1 && selectedFilters.filial[0] === branch && !equipment) {
+                selectedFilters.filial = [];
+            } else {
+                selectedFilters.filial = [branch];
+            }
+        } else { selectedFilters.filial = []; }
+
+        if (equipment) {
+            if (selectedFilters.equip.length === 1 && selectedFilters.equip[0] === equipment) {
+                selectedFilters.equip = [];
+            } else {
+                selectedFilters.equip = [equipment];
+            }
+        }
+        
+        updateCheckboxesUI('filial'); updateCheckboxesUI('equip');
         updateDashboard();
     }
 
     function clickParetoItem(defectName) { 
         maxTableRows = 100; oldHtmlTabela = ""; 
-        if (selectedDescOptions.includes(defectName)) { selectedDescOptions = selectedDescOptions.filter(v => v !== defectName); } 
-        else { selectedDescOptions.push(defectName); }
-        const checkboxes = document.querySelectorAll('#custom-desc-options input[type="checkbox"]');
-        checkboxes.forEach(cb => { cb.checked = selectedDescOptions.includes(cb.value); });
-        updateDescTriggerText(); updateDashboard(); 
+        if (selectedFilters.desc.includes(defectName)) { 
+            selectedFilters.desc = selectedFilters.desc.filter(v => v !== defectName); 
+        } else { 
+            selectedFilters.desc.push(defectName); 
+        }
+        updateCheckboxesUI('desc'); updateDashboard(); 
     }
     
-    function clickVehicleItem(vehicleNum) { maxTableRows = 100; oldHtmlTabela = ""; document.getElementById('filter-veiculo').value = document.getElementById('filter-veiculo').value === vehicleNum ? 'Tudo' : vehicleNum; updateDashboard(); }
+    function clickVehicleItem(vehicleNum) { 
+        maxTableRows = 100; oldHtmlTabela = ""; 
+        if (selectedFilters.veiculo.includes(vehicleNum)) { 
+            selectedFilters.veiculo = selectedFilters.veiculo.filter(v => v !== vehicleNum); 
+        } else { 
+            selectedFilters.veiculo.push(vehicleNum); 
+        }
+        updateCheckboxesUI('veiculo'); updateDashboard(); 
+    }
 
     function setQuickFilter(mode, btn) {
         maxTableRows = 100; oldHtmlTabela = "";
@@ -540,20 +694,19 @@
     function updateDashboard() {
         try {
             if (!osData.length) return;
-            const fAno = document.getElementById('filter-ano').value;
-            const fMes = document.getElementById('filter-mes').value;
-            const fFilial = document.getElementById('filter-filial').value;
-            const fVeiculo = document.getElementById('filter-veiculo').value;
-            const fEquip = document.getElementById('filter-equip').value;
-            const fSit = document.getElementById('filter-situacao').value;
 
             let filtered = osData.filter(item => {
                 let matchDays = (currentDaysLimit === 'Tudo' || item.dias <= currentDaysLimit);
-                let matchDesc = (selectedDescOptions.length === 0 || selectedDescOptions.includes(item.desc_filtro));
-                return matchDays && (fAno === 'Tudo' || item.ano === fAno) && (fMes === 'Tudo' || item.mes === fMes) &&
-                       (fFilial === 'Tudo' || item.filial === fFilial) && (fVeiculo === 'Tudo' || item.veiculo === fVeiculo) &&
-                       (fEquip === 'Tudo' || item.equipamento === fEquip) && matchDesc &&
-                       (fSit === 'Tudo' || item.situacao === fSit.toUpperCase());
+                
+                let matchAno = selectedFilters.ano.length === 0 || selectedFilters.ano.includes(item.ano);
+                let matchMes = selectedFilters.mes.length === 0 || selectedFilters.mes.includes(item.mes);
+                let matchFilial = selectedFilters.filial.length === 0 || selectedFilters.filial.includes(item.filial);
+                let matchVeiculo = selectedFilters.veiculo.length === 0 || selectedFilters.veiculo.includes(item.veiculo);
+                let matchEquip = selectedFilters.equip.length === 0 || selectedFilters.equip.includes(item.equipamento);
+                let matchDesc = selectedFilters.desc.length === 0 || selectedFilters.desc.includes(item.desc_filtro);
+                let matchSit = selectedFilters.situacao.length === 0 || selectedFilters.situacao.includes(item.situacao.toUpperCase());
+
+                return matchDays && matchAno && matchMes && matchFilial && matchVeiculo && matchEquip && matchDesc && matchSit;
             });
 
             filtered.sort((a, b) => currentSort.column === 'dias' ? (currentSort.desc ? b.dias - a.dias : a.dias - b.dias) : (currentSort.desc ? b.dataISO.localeCompare(a.dataISO) : a.dataISO.localeCompare(b.dataISO)));
@@ -578,7 +731,7 @@
                 matrix[f][eq] = (matrix[f][eq] || 0) + 1; matrix[f].rowTotal++;
             });
 
-            // TABELA
+            // TABELA GERAL
             let htmlTabela = '';
             let linhasVisiveis = filtered.slice(0, maxTableRows);
             linhasVisiveis.forEach((item, index) => {
@@ -603,22 +756,27 @@
             if (finalHtmlTabela !== oldHtmlTabela) { document.getElementById('table-body').innerHTML = finalHtmlTabela; oldHtmlTabela = finalHtmlTabela; }
             animateValue('table-total-dias', totalDiasTabela);
 
-            // PARETOS INTELIGENTES (Ignoram seus próprios filtros para cruzar dados)
+            // ==========================================
+            // PARETOS INTELIGENTES
+            // ==========================================
             let pareto = {};
             let vehicleCounts = {};
             osData.forEach(item => {
                 let matchDays = (currentDaysLimit === 'Tudo' || item.dias <= currentDaysLimit);
-                let matchAno = (fAno === 'Tudo' || item.ano === fAno);
-                let matchMes = (fMes === 'Tudo' || item.mes === fMes);
-                let matchFilial = (fFilial === 'Tudo' || item.filial === fFilial);
-                let matchVeiculo = (fVeiculo === 'Tudo' || item.veiculo === fVeiculo);
-                let matchEquip = (fEquip === 'Tudo' || item.equipamento === fEquip);
-                let matchSit = (fSit === 'Tudo' || item.situacao === fSit.toUpperCase());
-                let matchDesc = (selectedDescOptions.length === 0 || selectedDescOptions.includes(item.desc_filtro));
+                let matchAno = selectedFilters.ano.length === 0 || selectedFilters.ano.includes(item.ano);
+                let matchMes = selectedFilters.mes.length === 0 || selectedFilters.mes.includes(item.mes);
+                let matchFilial = selectedFilters.filial.length === 0 || selectedFilters.filial.includes(item.filial);
+                let matchVeiculo = selectedFilters.veiculo.length === 0 || selectedFilters.veiculo.includes(item.veiculo);
+                let matchEquip = selectedFilters.equip.length === 0 || selectedFilters.equip.includes(item.equipamento);
+                let matchDesc = selectedFilters.desc.length === 0 || selectedFilters.desc.includes(item.desc_filtro);
+                let matchSit = selectedFilters.situacao.length === 0 || selectedFilters.situacao.includes(item.situacao.toUpperCase());
 
+                // Pareto de Defeitos ignora filtro de Defeito
                 if (matchDays && matchAno && matchMes && matchFilial && matchVeiculo && matchEquip && matchSit) {
                     pareto[item.desc_filtro] = (pareto[item.desc_filtro] || 0) + 1;
                 }
+
+                // Pareto de Veículos ignora filtro de Veiculo
                 if (matchDays && matchAno && matchMes && matchFilial && matchEquip && matchDesc && matchSit) {
                     if (item.veiculo && item.veiculo !== '-') {
                         vehicleCounts[item.veiculo] = (vehicleCounts[item.veiculo] || 0) + 1;
@@ -626,12 +784,12 @@
                 }
             });
 
-            const generateParetoList = (dataObj, maxVal, activeVal, clickFunc, prefix="") => {
+            const generateParetoList = (dataObj, maxVal, activeArray, clickFunc, prefix="") => {
                 if (Object.keys(dataObj).length === 0) return "";
                 let html = '';
                 Object.keys(dataObj).map(k=>({n:k,c:dataObj[k]})).sort((a,b)=>b.c-a.c).slice(0,10).forEach(p => {
                     let w = Math.max(5, (p.c / maxVal) * 100);
-                    let isAct = Array.isArray(activeVal) ? (activeVal.includes(p.n) ? 'active-pareto' : '') : (activeVal && activeVal.toUpperCase() === p.n.toUpperCase() ? 'active-pareto' : '');
+                    let isAct = activeArray.includes(p.n) ? 'active-pareto' : '';
                     html += `<div class="pareto-item ${isAct}" onclick="${clickFunc}('${p.n.replace(/'/g, "\\'")}')">
                                 <div class="pareto-bg" style="width: ${w}%"></div>
                                 <div class="pareto-content"><span class="pareto-name" title="${p.n}">${prefix}${p.n}</span><span class="pareto-count">${p.c}x</span></div>
@@ -641,10 +799,10 @@
             };
 
             let maxPareto = Math.max(...Object.values(pareto), 1);
-            document.getElementById('pareto-container').innerHTML = generateParetoList(pareto, maxPareto, selectedDescOptions, 'clickParetoItem') || msgTudoBem;
+            document.getElementById('pareto-container').innerHTML = generateParetoList(pareto, maxPareto, selectedFilters.desc, 'clickParetoItem') || msgTudoBem;
 
             let maxVeic = Math.max(...Object.values(vehicleCounts), 1);
-            document.getElementById('vehicle-container').innerHTML = generateParetoList(vehicleCounts, maxVeic, fVeiculo, 'clickVehicleItem', '🚘 ') || msgTudoBem;
+            document.getElementById('vehicle-container').innerHTML = generateParetoList(vehicleCounts, maxVeic, selectedFilters.veiculo, 'clickVehicleItem', '🚘 ') || msgTudoBem;
 
             // MATRIZ CRUZADA
             document.querySelector('#matrix-table thead').innerHTML = `<tr><th>Filial</th>${equipamentosUnicos.map(e => `<th>${e}</th>`).join('')}<th>Total</th></tr>`;
@@ -652,11 +810,11 @@
             equipamentosUnicos.forEach(e => colTotals[e] = 0);
 
             Object.keys(matrix).sort().forEach(b => {
-                let d = matrix[b]; let isRowActive = fFilial === b ? 'active-filter-row' : '';
+                let d = matrix[b]; let isRowActive = selectedFilters.filial.includes(b) ? 'active-filter-row' : '';
                 mHTML += `<tr class="${isRowActive}"><td class="matrix-branch-click" onclick="clickMatrixCell('${b}', null)">${b}</td>`;
                 equipamentosUnicos.forEach(eq => {
                     let v = d[eq] || 0; colTotals[eq] += v;
-                    let isCellActive = (fFilial === b && fEquip === eq) ? 'active-filter-cell' : '';
+                    let isCellActive = (selectedFilters.filial.includes(b) && selectedFilters.equip.includes(eq)) ? 'active-filter-cell' : '';
                     mHTML += `<td class="clickable-cell ${isCellActive}" onclick="clickMatrixCell('${b}', '${eq}')">${v || ""}</td>`;
                 });
                 mHTML += `<td><b>${d.rowTotal}</b></td></tr>`; grandTotal += d.rowTotal;
@@ -667,7 +825,7 @@
 
             updateChart(equipamentosUnicos, colTotals);
 
-            // KPIs
+            // KPIs MACRO
             let abertasExatas = filtered.filter(i => i.situacao === 'ABERTA').length;
             let fechadasExatas = filtered.filter(i => i.situacao === 'FECHADA').length;
             let tot = abertasExatas + fechadasExatas;
@@ -687,8 +845,10 @@
     }
 
     function updateGauge(percent) {
-        if(gaugeInstance) { gaugeInstance.data.datasets[0].data = [percent, 100 - percent]; gaugeInstance.update(); } 
-        else {
+        if(gaugeInstance) {
+            gaugeInstance.data.datasets[0].data = [percent, 100 - percent];
+            gaugeInstance.update();
+        } else {
             const ctx = document.getElementById('gaugeChart').getContext('2d');
             gaugeInstance = new Chart(ctx, {
                 type: 'doughnut',
@@ -721,10 +881,14 @@
                         if (elements.length > 0) {
                             const index = elements[0].index;
                             const label = chartInstance.data.labels[index];
-                            const selEquip = document.getElementById('filter-equip');
                             maxTableRows = 100; oldHtmlTabela = "";
-                            selEquip.value = (selEquip.value === label) ? 'Tudo' : label;
-                            updateDashboard();
+                            
+                            if (selectedFilters.equip.includes(label)) {
+                                selectedFilters.equip = selectedFilters.equip.filter(v => v !== label);
+                            } else {
+                                selectedFilters.equip = [label];
+                            }
+                            updateCheckboxesUI('equip'); updateDashboard();
                         }
                     }
                 }
